@@ -206,14 +206,29 @@ HTML_TEMPLATE = """
         </div>
     </div>
 
-    <script>
-        const MAX_MESSAGES = 25; // Limite para autolimpeza de mensagens não fixadas
+<script>
+        // ================= CHAVE API PADRÃO PRÉ-CONFIGURADA =================
+        // Coloque sua chave padrão entre as aspas abaixo se desejar hardcodar, 
+        // ou o sistema usará o que estiver salvo ou a variável de ambiente do servidor.
+        const DEFAULT_API_KEY = "sk-or-v1-sua-chave-padrao-aqui"; 
+
+        const MAX_MESSAGES = 25;
         let conversas = JSON.parse(localStorage.getItem('athena_v5_chats')) || [];
         let activeChatId = localStorage.getItem('athena_v5_active_id') || null;
 
         const apiKeyInput = document.getElementById('apiKeyInput');
-        if (localStorage.getItem('openrouter_key')) apiKeyInput.value = localStorage.getItem('openrouter_key');
-        apiKeyInput.addEventListener('input', () => localStorage.setItem('openrouter_key', apiKeyInput.value));
+        
+        // Inicialização automática da Chave API
+        let savedKey = localStorage.getItem('openrouter_key');
+        if (!savedKey || savedKey.trim() === "" || savedKey.includes("sua-chave")) {
+            savedKey = DEFAULT_API_KEY;
+        }
+        apiKeyInput.value = savedKey;
+        localStorage.setItem('openrouter_key', savedKey);
+
+        apiKeyInput.addEventListener('input', () => {
+            localStorage.setItem('openrouter_key', apiKeyInput.value);
+        });
 
         let anexoAtualBase64 = null;
         let tipoAnexoAtual = null;
@@ -226,7 +241,7 @@ HTML_TEMPLATE = """
 
         window.onload = () => {
             if (conversas.length === 0) {
-                criarNovaConversa("Nossa 1° conversa (Estudos & Flow)");
+                criarNovaConversa("Nossa 1° conversa (Vibe Coding)");
             } else {
                 if (!activeChatId || !conversas.find(c => c.id === activeChatId)) {
                     activeChatId = conversas[0].id;

@@ -59,11 +59,18 @@
 
     <div class="main-container" id="mainContainer">
         <div class="topbar">
-            <select id="modelSelector" class="select-custom">
-                <option value="qwen/qwen-2.5-coder-32b-instruct">⚡ Nuvem (Qwen 2.5 Coder 32B)</option>
-                <option value="google/gemini-flash-1.5">👁️ Nuvem (Gemini 1.5 Flash - Visão)</option>
-                <option value="meta-llama/llama-3.3-70b-instruct">🧠 Nuvem (Llama 3.3 70B)</option>
+            <select id="model-select" class="form-select bg-dark text-white border-secondary">
+                <!-- OPÇÃO 1: HD LOCAL (Sempre gratuita, roda na sua máquina) -->
                 <option value="local-hd">💻 HD Local (LM Studio)</option>
+    
+                <!-- OPÇÃO 2: GEMINI FLASH (Gratuito via OpenRouter, excelente para código e raciocínio) -->
+                <option value="google/gemini-2.0-flash-exp:free">⚡ Nuvem (Gemini 2.0 Flash - Gratuito)</option>
+    
+                <!-- OPÇÃO 3: QWEN 2.5 7B (Gratuito via OpenRouter, muito focado em Vibe Coding) -->
+                <option value="qwen/qwen-2.5-coder-32b-instruct:free">🧠 Nuvem (Qwen Coder 32B - Gratuito)</option>
+    
+                <!-- OPÇÃO 4: META LLAMA (Gratuito via OpenRouter) -->
+                <option value="meta-llama/llama-3.2-11b-vision-instruct:free">👁️ Nuvem (Llama 3.2 Vision - Gratuito)</option>
             </select>
             
             <div style="display: flex; gap: 8px; align-items: center;">

@@ -1,74 +1,168 @@
-async function sendMessage() {
-    const inputField = document.getElementById('chat-input');
-    const message = inputField.value.trim();
-    const modelSelect = document.getElementById('model-select').value;
-    // Se você tiver um checkbox de modo semiológico, pegue o valor, senão use false
-    const medicalMode = document.getElementById('medical-mode') ? document.getElementById('medical-mode').checked : false; 
-    
-    if (!message) return;
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A.T.H.E.N.A. OS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { background-color: #121212; color: #e0e0e0; }
+        .chat-container { height: calc(100vh - 180px); overflow-y: auto; }
+        .msg-user { background-color: #ff9800; color: #fff; text-align: left; margin-left: auto; max-width: 80%; border-radius: 12px 12px 0 12px; }
+        .msg-ia { background-color: #2d2d2d; color: #e0e0e0; max-width: 80%; border-radius: 12px 12px 12px 0; }
+        /* Estilização para deixar o Markdown (listas, negritos) bonito */
+        .msg-ia p { margin-bottom: 0.75rem; }
+        .msg-ia ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 0.75rem; }
+        .msg-ia strong { color: #ffb74d; }
+    </style>
+</head>
+<body class="flex h-screen font-sans">
 
-    // 1. Mostrar a mensagem do usuário na tela
-    appendMessage('user', message);
-    inputField.value = '';
+    <!-- Barra Lateral -->
+    <aside class="w-64 bg-black p-4 border-r border-gray-800 flex flex-col">
+        <h1 class="text-2xl font-bold text-orange-500 mb-6 flex items-center gap-2">
+            ⚡ A.T.H.E.N.A.
+        </h1>
+        <div class="mb-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="medical-mode" class="form-checkbox text-orange-500 rounded bg-gray-800 border-gray-700">
+                <span class="text-sm">🩺 Modo Semiológico</span>
+            </label>
+        </div>
+    </aside>
 
-    // 2. Mostrar o balão de "Processando..."
-    const typingIndicator = document.getElementById('typing-indicator');
-    typingIndicator.style.display = 'block';
+    <!-- Área Principal de Chat -->
+    <main class="flex-1 flex flex-col relative">
+        
+        <!-- Topo (Seleção de Modelos) -->
+        <header class="p-4 border-b border-gray-800 bg-[#121212] flex justify-between items-center">
+            <select id="model-select" class="bg-gray-800 text-white p-2 rounded border border-gray-700 focus:outline-none focus:border-orange-500 w-1/3">
+                <option value="google/gemini-2.0-flash-exp:free">Nuvem (Gemini 2.0 Flash)</option>
+                <option value="qwen/qwen-2.5-coder-32b-instruct:free">Nuvem (Qwen Coder 32B)</option>
+                <option value="local-hd">🧠 HD Local (LM Studio)</option>
+            </select>
+        </header>
 
-    try {
-        // 3. Enviar para o Backend (app.py)
-        const response = await fetch('/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                message: message, 
-                model: modelSelect,
-                medical_mode: medicalMode
-            })
-        });
+        <!-- Caixa de Mensagens -->
+        <div id="chat-box" class="chat-container p-6 flex flex-col gap-4">
+            <div class="msg-ia p-4">
+                <strong>🦉 Athena:</strong><br>Sistemas online. O que vamos projetar hoje?
+            </div>
+        </div>
 
-        const data = await response.json();
+        <!-- Indicador de Digitação -->
+        <div id="typing-indicator" class="hidden absolute bottom-24 left-6 text-orange-500 italic text-sm bg-gray-900 px-4 py-2 rounded-full border border-orange-500/30">
+            ⚙️ Athena está processando a resposta...
+        </div>
 
-        // 4. Esconder o balão de "Processando..."
-        typingIndicator.style.display = 'none';
+        <!-- Área de Input -->
+        <div class="p-4 bg-black border-t border-gray-800">
+            <div class="flex items-center gap-2 bg-gray-900 p-2 rounded-lg border border-gray-700 focus-within:border-orange-500 transition-colors">
+                
+                <!-- Botão de Upload de Imagem -->
+                <label for="image-upload" class="cursor-pointer p-2 text-gray-400 hover:text-orange-500 transition-colors">
+                    📁
+                </label>
+                <input type="file" id="image-upload" accept="image/*" class="hidden" onchange="previewImage()">
+                
+                <input type="text" id="chat-input" class="flex-1 bg-transparent text-white p-2 focus:outline-none" placeholder="Mensagem para Athena..." onkeypress="if(event.key === 'Enter') sendMessage()">
+                
+                <button onclick="sendMessage()" class="bg-orange-500 hover:bg-orange-600 text-black font-bold p-2 px-4 rounded transition-colors">
+                    Enviar
+                </button>
+            </div>
+            <div id="image-preview-container" class="hidden mt-2 text-xs text-orange-400">
+                🖼️ Imagem anexada pronta para envio.
+            </div>
+        </div>
+    </main>
 
-        // 5. Exibir a resposta ou o erro
-        if (response.ok) {
-            appendMessage('athena', data.response);
-        } else {
-            appendMessage('error', '⚠️ Erro: ' + (data.error || 'Falha na comunicação.'));
+    <script>
+        let currentBase64Image = null;
+
+        // Converte a imagem escolhida para Base64
+        function previewImage() {
+            const file = document.getElementById('image-upload').files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onloadend = function() {
+                    currentBase64Image = reader.result;
+                    document.getElementById('image-preview-container').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
         }
 
-    } catch (error) {
-        typingIndicator.style.display = 'none';
-        appendMessage('error', '❌ Erro crítico: Não foi possível alcançar o servidor.');
-    }
-}
+        async function sendMessage() {
+            const inputField = document.getElementById('chat-input');
+            const message = inputField.value.trim();
+            const modelSelect = document.getElementById('model-select').value;
+            const medicalMode = document.getElementById('medical-mode').checked;
+            
+            if (!message && !currentBase64Image) return;
 
-function appendMessage(sender, text) {
-    const chatBox = document.getElementById('chat-box');
-    const msgDiv = document.createElement('div');
-    msgDiv.style.margin = '10px 0';
-    msgDiv.style.padding = '10px';
-    msgDiv.style.borderRadius = '8px';
+            // Mostrar a mensagem na tela
+            let displayMsg = message;
+            if (currentBase64Image) displayMsg += '<br>[🖼️ Imagem Anexada]';
+            appendMessage('user', displayMsg);
+            
+            inputField.value = '';
+            document.getElementById('image-preview-container').classList.add('hidden');
+            
+            // Ativar o balão de Processando
+            const typingIndicator = document.getElementById('typing-indicator');
+            typingIndicator.classList.remove('hidden');
 
-    if (sender === 'user') {
-        msgDiv.style.backgroundColor = '#ff9800'; // Cor do usuário (Laranja)
-        msgDiv.style.color = '#fff';
-        msgDiv.style.textAlign = 'right';
-        msgDiv.innerHTML = `<strong>Você:</strong><br>${text}`;
-    } else if (sender === 'error') {
-        msgDiv.style.backgroundColor = '#ff3333'; // Cor de Erro (Vermelho)
-        msgDiv.style.color = '#fff';
-        msgDiv.innerHTML = `${text}`;
-    } else {
-        msgDiv.style.backgroundColor = '#2d2d2d'; // Cor da IA (Escuro)
-        msgDiv.style.color = '#fff';
-        // Simples substituição de quebra de linha para ficar bonito
-        const formattedText = text.replace(/\n/g, '<br>');
-        msgDiv.innerHTML = `<strong>🦉 Athena:</strong><br>${formattedText}`;
-    }
+            const payload = {
+                message: message,
+                model: modelSelect,
+                medical_mode: medicalMode,
+                image: currentBase64Image
+            };
+            
+            currentBase64Image = null; // Limpa a imagem após enviar
+            document.getElementById('image-upload').value = '';
 
-    chatBox.appendChild(msgDiv);
-    chatBox.scrollTop = chatBox.scrollHeight; // Desce a rolagem automaticamente
-}
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                typingIndicator.classList.add('hidden');
+
+                if (response.ok) {
+                    appendMessage('athena', data.response);
+                } else {
+                    appendMessage('error', '⚠️ Erro: ' + data.error);
+                }
+            } catch (error) {
+                typingIndicator.classList.add('hidden');
+                appendMessage('error', '❌ Erro crítico: Servidor não encontrado.');
+            }
+        }
+
+        function appendMessage(sender, text) {
+            const chatBox = document.getElementById('chat-box');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = sender === 'user' ? 'msg-user p-4' : (sender === 'error' ? 'bg-red-900 text-white p-4 rounded' : 'msg-ia p-4');
+
+            if (sender === 'user') {
+                msgDiv.innerHTML = `<strong>Você:</strong><br>${text}`;
+            } else if (sender === 'error') {
+                msgDiv.innerHTML = text;
+            } else {
+                // Usa a biblioteca marked para renderizar negritos, listas e tabelas lindamente
+                const parsedText = marked.parse(text);
+                msgDiv.innerHTML = `<strong>🦉 Athena:</strong><br>${parsedText}`;
+            }
+
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>

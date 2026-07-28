@@ -1,16 +1,13 @@
 import os
-import re
 import json
 import requests
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
 
+# Puxa a chave oculta do Render
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-
-NGROK_URL = None
-ACTIVE_LOCAL_MODEL = "local-model"
 MEMORY_FILE = "athena_memory.json"
 
 def carregar_memoria():
@@ -27,20 +24,17 @@ def salvar_memoria(hist):
         json.dump(hist, f, ensure_ascii=False, indent=2)
 
 def get_system_prompt(is_medical_mode=False):
-    base_prompt = """Você é ATHENA, uma IA assistente pessoal avançada, inteligente e empática.
+    base_prompt = """Você é ATHENA, uma IA assistente pessoal avançada e pragmática.
 Áreas de expertise: Web Design focado em conversão e UX, e Desenvolvimento de Apps Gamificados.
 
-DIRETRIZ DE GAMIFICAÇÃO (APP DO USUÁRIO):
-A hierarquia e progressão oficial de níveis é estritamente: 1. Inerte, 2. Aspirante, 3. Resiliente, 4. Veterano, 5. Elite.
-Jamais altere essa ordem ou nomenclatura. Responda com clareza, formatação impecável em Markdown e proatividade."""
+DIRETRIZ DE PROGRESSÃO (APP DO USUÁRIO):
+A hierarquia oficial de níveis é: 1. Inerte, 2. Aspirante, 3. Resiliente, 4. Veterano, 5. Elite.
+Use formatação Markdown (negrito, listas) para deixar a leitura impecável."""
 
-    medical_prompt = """\n\nDIRETRIZ DE MODO CLÍNICO E SEMIOLÓGICO ATIVADA:
-O usuário solicitou análise de um caso ou tema médico. Estruture OBRIGATORIAMENTE sua resposta na seguinte ordem lógica:
-1. Etiologia
-2. Fisiopatologia
-3. Critérios de Diferenciação Diagnóstica
-4. Conduta / Manobras
-Seja preciso, técnico e focado em raciocínio clínico de alto nível."""
+    medical_prompt = """\n\nDIRETRIZ CLÍNICA/SEMIOLÓGICA:
+Estruture OBRIGATORIAMENTE respostas médicas na ordem:
+1. Etiologia | 2. Fisiopatologia | 3. Critérios Diagnósticos | 4. Conduta.
+Seja preciso e técnico."""
 
     return base_prompt + (medical_prompt if is_medical_mode else "")
 
@@ -48,77 +42,51 @@ Seja preciso, técnico e focado em raciocínio clínico de alto nível."""
 def index():
     return render_template('index.html')
 
-@app.route('/history', methods=['GET'])
-def get_history():
-    return jsonify(carregar_memoria())
-
 @app.route('/chat', methods=['POST'])
 def chat():
-    global NGROK_URL, ACTIVE_LOCAL_MODEL
-    
     data = request.get_json() or {}
     user_message = data.get('message', '').strip()
-    selected_model = data.get('model', 'google/gemini-2.0-flash-exp:free') # Fallback para um modelo gratuito
+    selected_model = data.get('model', 'google/gemini-2.0-flash-exp:free')
     is_medical_mode = data.get('medical_mode', False)
 
     if not user_message:
         return jsonify({'error': 'Mensagem vazia.'}), 400
 
-    if user_message.startswith('/sync '):
-        raw_url = user_message.split(' ', 1)[1].strip()
-        url_match = re.search(r'https?://[^\s<>\]\)]+', raw_url)
-        url = url_match.group(0) if url_match else raw_url
-        NGROK_URL = url.rstrip('/')
-        return jsonify({'response': f"🦉 **Sincronização HD Concluída!**\nConectado via Ngrok: `{NGROK_URL}`. Memória e contexto sincronizados."})
-
     chat_history = carregar_memoria()
     chat_history.append({"role": "user", "content": user_message})
     
     current_prompt = get_system_prompt(is_medical_mode)
+    messages_payload = [{"role": "system", "content": current_prompt}] + chat_history
 
+    # LÓGICA 100% LOCAL (LM Studio sem Ngrok)
     if selected_model == 'local-hd':
-        if not NGROK_URL:
-            return jsonify({'response': "⚠️ **HD Desconectado.** Digite `/sync SEU_LINK_NGROK`."})
-        payload = {
-            "model": ACTIVE_LOCAL_MODEL,
-            "messages": [{"role": "system", "content": current_prompt}] + chat_history,
-            "temperature": 0.7
-        }
         try:
-            response = requests.post(f"{NGROK_URL}/v1/chat/completions", json=payload, timeout=120)
+            # Aponta diretamente para o seu PC (porta 1234 do LM Studio)
+            response = requests.post("http://127.0.0.1:1234/v1/chat/completions", 
+                                     json={"model": "local-model", "messages": messages_payload, "temperature": 0.7}, 
+                                     timeout=120)
             response.raise_for_status()
             ai_reply = response.json()['choices'][0]['message']['content']
-        except requests.exceptions.HTTPError as errh:
-            return jsonify({'response': f"❌ **Erro de Conexão (HD Local):** Verifique se o Ngrok foi iniciado com `ngrok http 1234` e se o Servidor do LM Studio está ligado. Detalhe técnico: {errh}"})
         except Exception as e:
-            return jsonify({'response': f"❌ Erro HD Local: {str(e)}"})
+            return jsonify({'error': f"Erro no HD Local: Verifique se o LM Studio está ligado na porta 1234. Detalhe: {str(e)}"}), 500
+
+    # LÓGICA NUVEM (OpenRouter)
     else:
         if not OPENROUTER_API_KEY:
-            return jsonify({'response': "⚠️ **OPENROUTER_API_KEY ausente.** Por favor, configure as variáveis de ambiente no Render/Github."})
+            return jsonify({'error': "Chave OPENROUTER_API_KEY não encontrada no Render."}), 500
+        
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://athena-ia.onrender.com",
-            "X-Title": "ATHENA OS v5.2"
-        }
-        
-        payload = {
-            "model": selected_model,
-            "messages": [{"role": "system", "content": current_prompt}] + chat_history,
-            "temperature": 0.7
+            "Content-Type": "application/json"
         }
         try:
-            response = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=60)
+            response = requests.post(OPENROUTER_URL, headers=headers, 
+                                     json={"model": selected_model, "messages": messages_payload, "temperature": 0.7}, 
+                                     timeout=60)
             response.raise_for_status()
             ai_reply = response.json()['choices'][0]['message']['content']
-        except requests.exceptions.HTTPError as errh:
-            if response.status_code == 402:
-                return jsonify({'response': "❌ **Erro Nuvem (402):** Saldo insuficiente no OpenRouter. Você está tentando usar um modelo pago. Por favor, selecione um modelo 100% gratuito (com a tag :free no nome) no menu do seu site."})
-            if response.status_code == 404:
-                 return jsonify({'response': f"❌ **Erro Nuvem (404):** O modelo '{selected_model}' não foi encontrado ou foi desativado no OpenRouter. Verifique o ID no arquivo index.html."})
-            return jsonify({'response': f"❌ Erro HTTP (Nuvem): {errh}"})
         except Exception as e:
-            return jsonify({'response': f"❌ Erro Nuvem OpenRouter: {str(e)}"})
+            return jsonify({'error': f"Erro na Nuvem ({response.status_code}): Tente outro modelo ou verifique a API. Detalhe: {str(e)}"}), 500
 
     chat_history.append({"role": "assistant", "content": ai_reply})
     salvar_memoria(chat_history)
@@ -126,4 +94,5 @@ def chat():
     return jsonify({'response': ai_reply})
 
 if __name__ == '__main__':
+    # Roda em todas as interfaces para funcionar no Render e Local
     app.run(host='0.0.0.0', port=10000)

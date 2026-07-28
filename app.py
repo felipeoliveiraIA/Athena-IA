@@ -8,23 +8,31 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 # ==========================================
-# BLINDAGEM MÁXIMA: TRAVA DE DIRETÓRIO (PATH JAIL)
+# 1. ESTRUTURA DE DIRETÓRIOS E GIT
 # ==========================================
-HD_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-DADOS_DIR = os.path.join(HD_ROOT, 'Dados')
-APP_DIR = os.path.join(HD_ROOT, 'App')
+# O diretório base agora é a própria pasta 'App' onde o Git está configurado.
+# Isso garante que a pasta de Dados suba corretamente para o GitHub.
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+DADOS_DIR = os.path.join(APP_DIR, 'Dados')
 
 os.makedirs(DADOS_DIR, exist_ok=True)
 
+# ==========================================
+# 2. BLINDAGEM MÁXIMA: TRAVA DE DIRETÓRIO (PATH JAIL)
+# ==========================================
 def verificar_se_e_seguro(caminho_desejado):
-    """Garante matematicamente que o caminho está dentro da pasta do projeto."""
+    """
+    Garante matematicamente que qualquer leitura/escrita ocorra 
+    exclusivamente dentro da pasta 'App' do HD.
+    Impede acesso não autorizado a outras partes do HD Externo.
+    """
     caminho_absoluto = os.path.abspath(caminho_desejado)
-    if not caminho_absoluto.startswith(HD_ROOT):
-        raise PermissionError("ACESSO NEGADO: A IA tentou sair da pasta permitida!")
+    if not caminho_absoluto.startswith(APP_DIR):
+        raise PermissionError("🔒 ACESSO NEGADO: A IA tentou violar o limite do diretório seguro.")
     return caminho_absoluto
 
 # ==========================================
-# SINCRONIZAÇÃO SEGURA COM GITHUB
+# 3. SINCRONIZAÇÃO SEGURA COM GITHUB
 # ==========================================
 def check_internet():
     try:
@@ -34,18 +42,19 @@ def check_internet():
         return False
 
 def sync_with_github():
-    print("🌐 Internet detectada! Sincronizando apenas o código e dados permitidos...")
+    print("🌐 Internet detectada! Sincronizando código e dados da IA...")
     try:
         subprocess.run(["git", "pull", "origin", "main"], cwd=APP_DIR, check=True)
-        subprocess.run(["git", "add", "../Dados/*"], cwd=APP_DIR)
-        subprocess.run(["git", "commit", "-m", "Auto-sync seguro"], cwd=APP_DIR)
+        # Salva apenas o que está dentro do escopo permitido da pasta App
+        subprocess.run(["git", "add", "."], cwd=APP_DIR)
+        subprocess.run(["git", "commit", "-m", "Auto-sync: Backup de segurança do orquestrador"], cwd=APP_DIR)
         subprocess.run(["git", "push", "origin", "main"], cwd=APP_DIR)
-        print("✅ Sincronização segura concluída.")
+        print("✅ Sincronização concluída com sucesso.")
     except Exception as e:
-        print(f"⚠️ Nota de sync: {e}")
+        print(f"⚠️ Nota de sync: O repositório pode estar atualizado ou houve um aviso local. Detalhes: {e}")
 
 # ==========================================
-# ROTA DE CHAT ISOLADA
+# 4. ROTA DE CHAT ISOLADA (ORQUESTRADOR QWEN)
 # ==========================================
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -53,9 +62,16 @@ def chat():
     mensagem = dados_usuario.get('mensagem')
     historico = dados_usuario.get('historico', [])
 
-    mensagens_formatadas = [
-        {"role": "system", "content": "Você é um assistente estritamente isolado em ambiente seguro no HD externo. Você não tem acesso a arquivos pessoais do usuário."}
-    ]
+    # A IA assume sua função autônoma, mas sob as regras rígidas do usuário.
+    prompt_sistema = (
+        "Você é um Agente Orquestrador Autônomo operando de forma estritamente "
+        "isolada em um ambiente seguro no HD externo do usuário. "
+        "Você tem permissão para organizar lógica, estruturar códigos e coordenar tarefas textuais. "
+        "No entanto, VOCÊ NÃO TEM ACESSO a arquivos pessoais do usuário. "
+        "Sua manipulação de dados é limitada APENAS ao que o usuário explicitamente autorizar na conversa."
+    )
+
+    mensagens_formatadas = [{"role": "system", "content": prompt_sistema}]
     mensagens_formatadas.extend(historico)
     mensagens_formatadas.append({"role": "user", "content": mensagem})
 
@@ -64,7 +80,7 @@ def chat():
     payload = {
         "model": "local-model",
         "messages": mensagens_formatadas,
-        "temperature": 0.7
+        "temperature": 0.3 # Mantido baixo para foco em precisão, lógica e códigos (ideal para o Qwen)
     }
 
     try:
@@ -77,10 +93,11 @@ def chat():
         return jsonify({"resposta": texto_ia})
     
     except requests.exceptions.ConnectionError:
-        return jsonify({"erro": "O LM Studio não está rodando. Abra o LM Studio no HD e clique em Start Server."}), 500
+        return jsonify({"erro": "O servidor do LM Studio não está rodando. Abra o LM Studio e clique em 'Start Server'."}), 500
 
 def salvar_historico_seguro(usuario_msg, ia_msg):
     caminho_arquivo = os.path.join(DADOS_DIR, 'historico_offline.json')
+    # Passa pela trava de segurança antes de abrir o arquivo
     caminho_seguro = verificar_se_e_seguro(caminho_arquivo)
     
     historico = []
@@ -97,6 +114,6 @@ if __name__ == '__main__':
     if check_internet():
         sync_with_github()
     else:
-        print("🚫 Sem internet. Rodando em MODO TOTALMENTE OFFLINE E SEGURO.")
+        print("🚫 Sem internet. Rodando orquestrador em MODO OFFLINE E BLINDADO.")
     
     app.run(host='127.0.0.1', port=5000)

@@ -3,96 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A.T.H.E.N.A. OS</title>
+    <title>A.T.H.E.N.A. OS v5.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        body { background-color: #121212; color: #e0e0e0; }
-        .chat-container { height: calc(100vh - 180px); overflow-y: auto; }
-        .msg-user { background-color: #ff9800; color: #fff; text-align: left; margin-left: auto; max-width: 80%; border-radius: 12px 12px 0 12px; }
-        .msg-ia { background-color: #2d2d2d; color: #e0e0e0; max-width: 80%; border-radius: 12px 12px 12px 0; }
-        /* Estilização para deixar o Markdown (listas, negritos) bonito */
+        body { background-color: #0f0f11; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .sidebar { background-color: #161618; border-right: 1px solid #2a2a2d; }
+        .chat-container { height: calc(100vh - 160px); overflow-y: auto; scroll-behavior: smooth; }
+        .msg-user { background-color: #ff9800; color: #000; text-align: left; margin-left: auto; max-width: 80%; border-radius: 12px 12px 0 12px; }
+        .msg-ia-container { max-width: 85%; }
+        .msg-ia { background-color: #1e1e20; color: #e0e0e0; border-radius: 12px 12px 12px 0; border: 1px solid #2a2a2d; }
         .msg-ia p { margin-bottom: 0.75rem; }
         .msg-ia ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 0.75rem; }
         .msg-ia strong { color: #ffb74d; }
+        .btn-action { color: #888; font-size: 0.85rem; cursor: pointer; transition: color 0.2s; }
+        .btn-action:hover { color: #ff9800; }
+        .input-bg { background-color: #1e1e20; border: 1px solid #2a2a2d; }
     </style>
 </head>
-<body class="flex h-screen font-sans">
+<body class="flex h-screen overflow-hidden">
 
-    <!-- Barra Lateral -->
-    <aside class="w-64 bg-black p-4 border-r border-gray-800 flex flex-col">
-        <h1 class="text-2xl font-bold text-orange-500 mb-6 flex items-center gap-2">
-            ⚡ A.T.H.E.N.A.
+    <!-- BARRA LATERAL (Idêntica ao Print 4) -->
+    <aside class="w-64 sidebar flex flex-col p-5">
+        <h1 class="text-xl font-black text-white mb-6 flex items-center gap-2">
+            <span class="text-orange-500">⚡</span> A.T.H.E.N.A. OS <span class="bg-orange-500 text-black text-xs px-1 rounded">v5.2</span>
         </h1>
-        <div class="mb-4">
-            <label class="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" id="medical-mode" class="form-checkbox text-orange-500 rounded bg-gray-800 border-gray-700">
-                <span class="text-sm">🩺 Modo Semiológico</span>
-            </label>
-        </div>
+        
+        <button onclick="location.reload()" class="w-full bg-orange-500 hover:bg-orange-600 text-black font-bold py-2 px-4 rounded mb-8 transition-colors">
+            + Nova Sessão
+        </button>
+
+        <div class="text-gray-400 text-sm mb-3">Integrações:</div>
+        <label class="flex items-center gap-2 cursor-pointer text-gray-300 hover:text-white">
+            <input type="checkbox" id="medical-mode" class="form-checkbox w-4 h-4 text-orange-500 rounded bg-gray-800 border-gray-600">
+            <span>🩺 Modo Semiológico</span>
+        </label>
     </aside>
 
-    <!-- Área Principal de Chat -->
+    <!-- ÁREA PRINCIPAL -->
     <main class="flex-1 flex flex-col relative">
         
-        <!-- Topo (Seleção de Modelos) -->
-        <header class="p-4 border-b border-gray-800 bg-[#121212] flex justify-between items-center">
-            <select id="model-select" class="bg-gray-800 text-white p-2 rounded border border-gray-700 focus:outline-none focus:border-orange-500 w-1/3">
-                <option value="google/gemini-2.0-flash-exp:free">Nuvem (Gemini 2.0 Flash)</option>
-                <option value="qwen/qwen-2.5-coder-32b-instruct:free">Nuvem (Qwen Coder 32B)</option>
-                <option value="local-hd">🧠 HD Local (LM Studio)</option>
+        <!-- CABEÇALHO SUPERIOR -->
+        <header class="p-4 border-b border-gray-800 bg-[#0f0f11] flex justify-between items-center">
+            <select id="model-select" class="bg-white text-black text-sm font-semibold p-1.5 rounded outline-none w-64 shadow-sm cursor-pointer">
+                <option value="google/gemini-2.0-flash-exp:free">🧠 Nuvem (Gemini 2.0 Flash - Gratuito)</option>
+                <option value="qwen/qwen-2.5-coder-32b-instruct:free">🧠 Nuvem (Qwen Coder 32B - Gratuito)</option>
+                <option value="local-hd">🖥️ HD Local (LM Studio porta 1234)</option>
             </select>
+
+            <div class="flex items-center gap-3 text-sm">
+                <select class="bg-[#1e1e20] text-white p-1.5 rounded border border-gray-700 outline-none"><option>1.0x</option></select>
+                <button class="bg-[#1e1e20] hover:bg-gray-700 text-white p-1.5 px-3 rounded border border-gray-700 flex gap-1 items-center">🎤 Live</button>
+                <button class="bg-[#1e1e20] hover:bg-red-900 text-red-500 p-1.5 px-3 rounded border border-gray-700">🔴</button>
+                <button class="bg-[#1e1e20] hover:bg-gray-700 text-white p-1.5 px-3 rounded border border-gray-700">PiP</button>
+            </div>
         </header>
 
-        <!-- Caixa de Mensagens -->
-        <div id="chat-box" class="chat-container p-6 flex flex-col gap-4">
-            <div class="msg-ia p-4">
-                <strong>🦉 Athena:</strong><br>Sistemas online. O que vamos projetar hoje?
+        <!-- CAIXA DE CHAT -->
+        <div id="chat-box" class="chat-container p-6 flex flex-col gap-6">
+            <div class="msg-ia-container">
+                <div class="msg-ia p-4">
+                    🦉 Athena OS iniciada. Todos os sistemas otimizados. Pronta para os seus projetos.
+                </div>
             </div>
         </div>
 
-        <!-- Indicador de Digitação -->
-        <div id="typing-indicator" class="hidden absolute bottom-24 left-6 text-orange-500 italic text-sm bg-gray-900 px-4 py-2 rounded-full border border-orange-500/30">
-            ⚙️ Athena está processando a resposta...
+        <!-- INDICADOR DE DIGITAÇÃO -->
+        <div id="typing-indicator" class="hidden absolute bottom-24 left-6 text-orange-500 text-sm italic">
+            <span class="animate-pulse">● ● ● Athena processando...</span>
         </div>
 
-        <!-- Área de Input -->
-        <div class="p-4 bg-black border-t border-gray-800">
-            <div class="flex items-center gap-2 bg-gray-900 p-2 rounded-lg border border-gray-700 focus-within:border-orange-500 transition-colors">
+        <!-- ÁREA DE INPUT DE MENSAGEM -->
+        <div class="p-4 border-t border-gray-800 bg-[#0f0f11]">
+            <div class="input-bg flex items-center p-2 rounded-lg focus-within:border-orange-500 transition-colors">
                 
-                <!-- Botão de Upload de Imagem -->
-                <label for="image-upload" class="cursor-pointer p-2 text-gray-400 hover:text-orange-500 transition-colors">
-                    📁
-                </label>
+                <!-- Botão de Arquivo (Clipe) -->
+                <label for="image-upload" class="cursor-pointer p-2 text-gray-400 hover:text-orange-500">📎</label>
                 <input type="file" id="image-upload" accept="image/*" class="hidden" onchange="previewImage()">
                 
-                <input type="text" id="chat-input" class="flex-1 bg-transparent text-white p-2 focus:outline-none" placeholder="Mensagem para Athena..." onkeypress="if(event.key === 'Enter') sendMessage()">
+                <input type="text" id="chat-input" class="flex-1 bg-transparent text-white p-2 focus:outline-none" 
+                       placeholder="Mensagem (Shift+Enter para pular linha)..." 
+                       onkeypress="if(event.key === 'Enter') sendMessage()">
                 
-                <button onclick="sendMessage()" class="bg-orange-500 hover:bg-orange-600 text-black font-bold p-2 px-4 rounded transition-colors">
-                    Enviar
+                <button onclick="sendMessage()" class="bg-orange-500 hover:bg-orange-600 text-black p-2 px-3 rounded-lg flex items-center gap-2 font-bold ml-2">
+                    <span class="text-lg">➤</span> 🧠
                 </button>
             </div>
-            <div id="image-preview-container" class="hidden mt-2 text-xs text-orange-400">
-                🖼️ Imagem anexada pronta para envio.
+            <div id="image-preview" class="hidden mt-2 text-xs text-orange-400 pl-2">
+                🖼️ Imagem anexada e pronta para análise.
             </div>
         </div>
     </main>
 
     <script>
-        let currentBase64Image = null;
+        let currentImageBase64 = null;
 
-        // Converte a imagem escolhida para Base64
         function previewImage() {
             const file = document.getElementById('image-upload').files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onloadend = function() {
-                    currentBase64Image = reader.result;
-                    document.getElementById('image-preview-container').classList.remove('hidden');
-                };
+                reader.onloadend = () => { currentImageBase64 = reader.result; document.getElementById('image-preview').classList.remove('hidden'); };
                 reader.readAsDataURL(file);
             }
         }
+
+        // --- AUTOMAÇÕES SOLICITADAS ---
+        function salvarNoObsidian(textoCru) {
+            const blob = new Blob([textoCru], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const data = new Date().toISOString().split('T')[0];
+            a.download = `Athena_Export_${data}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert("✅ Arquivo Markdown gerado! Arraste para o seu Obsidian.");
+        }
+
+        function ouvirTexto(textoCru) {
+            const textoLimpo = textoCru.replace(/[#*`_]/g, ''); // Limpa markdown para a voz
+            const utterance = new SpeechSynthesisUtterance(textoLimpo);
+            utterance.lang = 'pt-BR';
+            utterance.rate = 1.1;
+            speechSynthesis.speak(utterance);
+        }
+        // ------------------------------
 
         async function sendMessage() {
             const inputField = document.getElementById('chat-input');
@@ -100,28 +137,19 @@
             const modelSelect = document.getElementById('model-select').value;
             const medicalMode = document.getElementById('medical-mode').checked;
             
-            if (!message && !currentBase64Image) return;
+            if (!message && !currentImageBase64) return;
 
-            // Mostrar a mensagem na tela
+            // Mostra mensagem do usuário
             let displayMsg = message;
-            if (currentBase64Image) displayMsg += '<br>[🖼️ Imagem Anexada]';
-            appendMessage('user', displayMsg);
+            if (currentImageBase64) displayMsg += '<br><span class="text-xs text-black/70">🖼️ [Imagem Enviada]</span>';
+            appendUserMessage(displayMsg);
             
             inputField.value = '';
-            document.getElementById('image-preview-container').classList.add('hidden');
-            
-            // Ativar o balão de Processando
-            const typingIndicator = document.getElementById('typing-indicator');
-            typingIndicator.classList.remove('hidden');
+            document.getElementById('image-preview').classList.add('hidden');
+            document.getElementById('typing-indicator').classList.remove('hidden');
 
-            const payload = {
-                message: message,
-                model: modelSelect,
-                medical_mode: medicalMode,
-                image: currentBase64Image
-            };
-            
-            currentBase64Image = null; // Limpa a imagem após enviar
+            const payload = { message: message, model: modelSelect, medical_mode: medicalMode, image: currentImageBase64 };
+            currentImageBase64 = null;
             document.getElementById('image-upload').value = '';
 
             try {
@@ -132,35 +160,60 @@
                 });
 
                 const data = await response.json();
-                typingIndicator.classList.add('hidden');
+                document.getElementById('typing-indicator').classList.add('hidden');
 
                 if (response.ok) {
-                    appendMessage('athena', data.response);
+                    appendAIMessage(data.response);
                 } else {
-                    appendMessage('error', '⚠️ Erro: ' + data.error);
+                    appendAIMessage('⚠️ **Erro de Comunicação:** ' + data.error, true);
                 }
             } catch (error) {
-                typingIndicator.classList.add('hidden');
-                appendMessage('error', '❌ Erro crítico: Servidor não encontrado.');
+                document.getElementById('typing-indicator').classList.add('hidden');
+                appendAIMessage('❌ **Erro Crítico:** O servidor está offline ou inacessível.', true);
             }
         }
 
-        function appendMessage(sender, text) {
+        function appendUserMessage(text) {
             const chatBox = document.getElementById('chat-box');
             const msgDiv = document.createElement('div');
-            msgDiv.className = sender === 'user' ? 'msg-user p-4' : (sender === 'error' ? 'bg-red-900 text-white p-4 rounded' : 'msg-ia p-4');
+            msgDiv.className = 'msg-user p-3 px-5 shadow';
+            msgDiv.innerHTML = text;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
 
-            if (sender === 'user') {
-                msgDiv.innerHTML = `<strong>Você:</strong><br>${text}`;
-            } else if (sender === 'error') {
-                msgDiv.innerHTML = text;
-            } else {
-                // Usa a biblioteca marked para renderizar negritos, listas e tabelas lindamente
-                const parsedText = marked.parse(text);
-                msgDiv.innerHTML = `<strong>🦉 Athena:</strong><br>${parsedText}`;
+        function appendAIMessage(text, isError = false) {
+            const chatBox = document.getElementById('chat-box');
+            const container = document.createElement('div');
+            container.className = 'msg-ia-container';
+
+            // O balão de texto da IA renderizando Markdown
+            const msgDiv = document.createElement('div');
+            msgDiv.className = isError ? 'msg-ia p-4 border-red-900 bg-red-900/20' : 'msg-ia p-4';
+            msgDiv.innerHTML = marked.parse(text);
+            container.appendChild(msgDiv);
+
+            // Se não for erro, adiciona os botões "Ouvir" e "Salvar no Obsidian" abaixo da mensagem
+            if (!isError) {
+                const actionDiv = document.createElement('div');
+                actionDiv.className = 'flex gap-4 mt-2 ml-1';
+                
+                const btnOuvir = document.createElement('span');
+                btnOuvir.className = 'btn-action flex items-center gap-1';
+                btnOuvir.innerHTML = '🔊 Ouvir';
+                btnOuvir.onclick = () => ouvirTexto(text);
+                
+                const btnObsidian = document.createElement('span');
+                btnObsidian.className = 'btn-action flex items-center gap-1';
+                btnObsidian.innerHTML = '💎 Salvar no Obsidian';
+                btnObsidian.onclick = () => salvarNoObsidian(text);
+
+                actionDiv.appendChild(btnOuvir);
+                actionDiv.appendChild(btnObsidian);
+                container.appendChild(actionDiv);
             }
 
-            chatBox.appendChild(msgDiv);
+            chatBox.appendChild(container);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
     </script>

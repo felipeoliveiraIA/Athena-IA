@@ -1,11 +1,11 @@
+import os
 from flask import Flask, render_template, request, jsonify
+from google import genai
 
 app = Flask(__name__)
 
-# Cérebro autônomo independente na nuvem
-chat_history = [
-    {"role": "system", "content": "Você é a Athena, uma inteligência artificial autônoma hospedada na nuvem. Você opera de forma independente, focando em produtividade, desenvolvimento, organização de projetos e suporte direto ao usuário com precisão e clareza em Português."}
-]
+# Inicializa o cliente autônomo da nuvem usando a chave de API segura do Render
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 @app.route('/')
 def index():
@@ -13,24 +13,26 @@ def index():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    global chat_history
-    
     data = request.get_json()
     user_message = data.get('message', '').strip()
 
     if not user_message:
         return jsonify({'error': 'Mensagem vazia.'})
 
-    # Registra a entrada na memória autônoma da nuvem
-    chat_history.append({"role": "user", "content": user_message})
+    try:
+        # Processamento inteligente e autônomo direto na nuvem
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=user_message,
+        )
+        
+        ai_reply = response.text
+        return jsonify({'response': ai_reply})
 
-    # Processamento autônomo direto na nuvem
-    # Aqui a IA opera por conta própria, processando as demandas do usuário sem dependências externas
-    ai_reply = f"Compreendido, Luiz. Estou operando de forma 100% autônoma aqui na nuvem. Processando sua diretriz: \"{user_message}\". Como posso estruturar ou avançar com isso para você agora?"
-
-    chat_history.append({"role": "assistant", "content": ai_reply})
-
-    return jsonify({'response': ai_reply})
+    except Exception as e:
+        return jsonify({
+            'response': f"❌ **Erro no núcleo autônomo da nuvem:** {str(e)}\n\n*Nota técnica: Certifique-se de que a variável de ambiente `GEMINI_API_KEY` foi configurada corretamente no painel do Render.*"
+        })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A.T.H.E.N.A. OS v5.2 Prime</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #121214; color: #e1e1e6; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Barra Lateral */
+        .sidebar { width: 260px; background-color: #1a1a1e; padding: 20px; display: flex; flex-direction: column; border-right: 1px solid #29292e; }
+        .logo-area { color: #f59e0b; font-weight: bold; font-size: 18px; margin-bottom: 30px; display: flex; align-items: center; gap: 10px; }
+        .logo-area span { background: #f59e0b; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+        .btn-new { background-color: #f59e0b; color: #121214; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px; transition: 0.2s; }
+        .btn-new:hover { background-color: #d97706; }
+        .btn-memory { background-color: #29292e; color: #e1e1e6; border: none; padding: 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+        .history-item { background-color: #29292e; border: 1px solid #f59e0b; padding: 10px; border-radius: 8px; font-size: 13px; color: #a8a8b3; }
+        
+        /* Área Principal */
+        .main-content { flex: 1; display: flex; flex-direction: column; background-color: #121214; }
+        
+        /* Cabeçalho */
+        .header { height: 70px; background-color: #1a1a1e; border-bottom: 1px solid #29292e; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; }
+        .header-title { display: flex; align-items: center; gap: 15px; }
+        .avatar { width: 40px; height: 40px; background-color: #f59e0b; color: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; }
+        .header-controls { display: flex; gap: 15px; align-items: center; }
+        .select-box { background: #29292e; color: #fff; border: none; padding: 8px 15px; border-radius: 6px; outline: none; }
+        .live-btn { background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #10b981; padding: 6px 12px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+        .live-btn::before { content: ''; width: 8px; height: 8px; background: #10b981; border-radius: 50%; display: inline-block; }
+
+        /* Chat */
+        .chat-area { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; scroll-behavior: smooth; }
+        .message { max-width: 80%; padding: 15px 20px; border-radius: 12px; line-height: 1.5; font-size: 15px; position: relative; }
+        .message.ai { background-color: #202024; align-self: flex-start; border-left: 4px solid #f59e0b; }
+        .message.user { background-color: #f59e0b; color: #121214; align-self: flex-end; border-bottom-right-radius: 4px; }
+        
+        /* Loading */
+        .typing { display: none; background-color: #202024; align-self: flex-start; padding: 15px 20px; border-radius: 12px; border-left: 4px solid #f59e0b; color: #a8a8b3; font-style: italic; }
+
+        /* Input Area */
+        .input-area { padding: 20px 30px; background-color: #1a1a1e; border-top: 1px solid #29292e; display: flex; gap: 15px; align-items: flex-end; }
+        .input-box { flex: 1; background-color: #202024; border: 1px solid #323238; border-radius: 12px; padding: 15px; color: #e1e1e6; font-size: 15px; resize: none; outline: none; height: 60px; max-height: 150px; overflow-y: auto; }
+        .input-box:focus { border-color: #f59e0b; }
+        .btn-send { background-color: #f59e0b; color: #121214; border: none; width: 50px; height: 50px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .btn-send:hover { background-color: #d97706; }
+        .btn-send svg { width: 24px; height: 24px; fill: currentColor; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="logo-area">
+            ⚡ A.T.H.E.N.A. OS <span>v5.2 Prime</span>
+        </div>
+        <button class="btn-new" onclick="location.reload()">+ Nova Conversa</button>
+        <button class="btn-memory">🧠 Memória & Perfil (Aprender)</button>
+        
+        <div class="history-item">
+            <strong>Nossa 1ª conversa (Local)</strong><br>
+            <span style="color:#10b981;">Conexão pronta</span>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="header-title">
+                <div class="avatar">AT</div>
+                <div>
+                    <h3 style="font-size: 16px;">Sessão HD Principal</h3>
+                    <span style="font-size: 12px; color: #a8a8b3;">Pronta para receber o Qwen2.5</span>
+                </div>
+            </div>
+            <div class="header-controls">
+                <select class="select-box"><option>⚡ Automática (Smart Vibe)</option></select>
+                <div class="live-btn">Modo Live</div>
+            </div>
+        </div>
+
+        <div class="chat-area" id="chat-area">
+            <div class="message ai">
+                Olá! Sou a Athena, sua interface. O layout foi restaurado com sucesso! 🧡<br><br>
+                Para conectar ao seu HD agora, cole seu link no campo abaixo exatamente assim:<br>
+                <strong>/sync https://seu-link.ngrok-free.dev</strong>
+            </div>
+            <div class="typing" id="typing-indicator">Athena está conectando com o HD...</div>
+        </div>
+
+        <div class="input-area">
+            <textarea id="user-input" class="input-box" placeholder="Digite sua mensagem, ou o comando /sync..." oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
+            <button class="btn-send" onclick="sendMessage()">
+                <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const chatArea = document.getElementById('chat-area');
+        const userInput = document.getElementById('user-input');
+        const typingIndicator = document.getElementById('typing-indicator');
+
+        // Permite enviar com "Enter"
+        userInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            // Remove o texto e volta a altura normal
+            userInput.value = '';
+            userInput.style.height = '60px';
+
+            // Insere mensagem do usuário
+            appendMessage(text, 'user');
+            
+            // Mostra o "digitando"
+            typingIndicator.style.display = 'block';
+            chatArea.appendChild(typingIndicator); // Move para o final
+            chatArea.scrollTop = chatArea.scrollHeight;
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+
+                const data = await response.json();
+                typingIndicator.style.display = 'none';
+                
+                // Formata quebras de linha para HTML e renderiza texto em negrito
+                let formattedReply = data.response.replace(/\n/g, '<br>');
+                formattedReply = formattedReply.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                
+                appendMessage(formattedReply, 'ai', true);
+
+            } catch (error) {
+                typingIndicator.style.display = 'none';
+                appendMessage("❌ Erro ao contatar o servidor Render.", 'ai');
+            }
+        }
+
+        function appendMessage(content, sender, isHTML = false) {
+            const div = document.createElement('div');
+            div.className = `message ${sender}`;
+            if (isHTML) {
+                div.innerHTML = content;
+            } else {
+                div.textContent = content; // Previne injection se for texto do usuário
+            }
+            chatArea.appendChild(div);
+            // Move o "digitando" para o fim
+            chatArea.appendChild(typingIndicator);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+    </script>
+</body>
+</html>

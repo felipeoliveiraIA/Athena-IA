@@ -48,13 +48,17 @@ Seja preciso, técnico e focado em raciocínio clínico de alto nível."""
 def index():
     return render_template('index.html')
 
+@app.route('/history', methods=['GET'])
+def get_history():
+    return jsonify(carregar_memoria())
+
 @app.route('/chat', methods=['POST'])
 def chat():
     global NGROK_URL, ACTIVE_LOCAL_MODEL
     
     data = request.get_json() or {}
     user_message = data.get('message', '').strip()
-    selected_model = data.get('model', 'qwen/qwen-2.5-coder-32b-instruct')
+    selected_model = data.get('model', 'google/gemini-2.0-flash-exp:free') # Fallback para um modelo gratuito
     is_medical_mode = data.get('medical_mode', False)
 
     if not user_message:
@@ -65,10 +69,11 @@ def chat():
         url_match = re.search(r'https?://[^\s<>\]\)]+', raw_url)
         url = url_match.group(0) if url_match else raw_url
         NGROK_URL = url.rstrip('/')
-        return jsonify({'response': f"🦉 **Sincronização HD Concluída!**\nConectado via Ngrok: `{NGROK_URL}`. Memória sincronizada."})
+        return jsonify({'response': f"🦉 **Sincronização HD Concluída!**\nConectado via Ngrok: `{NGROK_URL}`. Memória e contexto sincronizados."})
 
     chat_history = carregar_memoria()
     chat_history.append({"role": "user", "content": user_message})
+    
     current_prompt = get_system_prompt(is_medical_mode)
 
     if selected_model == 'local-hd':
@@ -89,13 +94,14 @@ def chat():
             return jsonify({'response': f"❌ Erro HD Local: {str(e)}"})
     else:
         if not OPENROUTER_API_KEY:
-            return jsonify({'response': "⚠️ **OPENROUTER_API_KEY ausente.**"})
+            return jsonify({'response': "⚠️ **OPENROUTER_API_KEY ausente.** Por favor, configure as variáveis de ambiente no Render/Github."})
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://athena-ia.onrender.com",
             "X-Title": "ATHENA OS v5.2"
         }
+        
         payload = {
             "model": selected_model,
             "messages": [{"role": "system", "content": current_prompt}] + chat_history,
@@ -107,7 +113,9 @@ def chat():
             ai_reply = response.json()['choices'][0]['message']['content']
         except requests.exceptions.HTTPError as errh:
             if response.status_code == 402:
-                return jsonify({'response': "❌ **Erro Nuvem (402):** Saldo insuficiente no OpenRouter. Adicione créditos ou troque para um modelo gratuito na plataforma."})
+                return jsonify({'response': "❌ **Erro Nuvem (402):** Saldo insuficiente no OpenRouter. Você está tentando usar um modelo pago. Por favor, selecione um modelo 100% gratuito (com a tag :free no nome) no menu do seu site."})
+            if response.status_code == 404:
+                 return jsonify({'response': f"❌ **Erro Nuvem (404):** O modelo '{selected_model}' não foi encontrado ou foi desativado no OpenRouter. Verifique o ID no arquivo index.html."})
             return jsonify({'response': f"❌ Erro HTTP (Nuvem): {errh}"})
         except Exception as e:
             return jsonify({'response': f"❌ Erro Nuvem OpenRouter: {str(e)}"})

@@ -1,30 +1,17 @@
 import os
 import json
-import socket
 import requests
-import subprocess
 from flask import Flask, request, jsonify, render_template_string
 
 app = Flask(__name__)
 
 # ==========================================
-# 1. ESTRUTURA DE DIRETÓRIOS
+# 1. SINCRONIZADOR NUVEM <-> HD
 # ==========================================
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-DADOS_DIR = os.path.join(APP_DIR, 'Dados')
-os.makedirs(DADOS_DIR, exist_ok=True)
+CONFIG = {"ngrok_url": ""}
 
 # ==========================================
-# 2. BLINDAGEM MÁXIMA DO HD (PATH JAIL)
-# ==========================================
-def verificar_se_e_seguro(caminho_desejado):
-    caminho_absoluto = os.path.abspath(caminho_desejado)
-    if not caminho_absoluto.startswith(APP_DIR):
-        raise PermissionError("🔒 ACESSO NEGADO: A IA tentou violar o limite do diretório seguro.")
-    return caminho_absoluto
-
-# ==========================================
-# 3. INTERFACE DE CHAT VISUAL (FRONT-END EMBUTIDO)
+# 2. INTERFACE DE CHAT VISUAL DA NUVEM
 # ==========================================
 HTML_CHAT = """
 <!DOCTYPE html>
@@ -32,35 +19,38 @@ HTML_CHAT = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Athena IA - Orquestrador Local</title>
+    <title>Athena IA - Nuvem & HD</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e2e; color: #cdd6f4; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #1e1e2e; color: #cdd6f4; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
         #chat-box { flex-grow: 1; background-color: #313244; padding: 20px; border-radius: 10px; overflow-y: auto; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         .mensagem { margin-bottom: 15px; padding: 10px 15px; border-radius: 8px; max-width: 80%; line-height: 1.5; }
         .user { background-color: #89b4fa; color: #11111b; align-self: flex-end; margin-left: auto; }
         .ia { background-color: #45475a; color: #cdd6f4; align-self: flex-start; }
+        .sistema { background-color: #f9e2af; color: #11111b; align-self: center; text-align: center; font-weight: bold; width: 100%; }
         .input-area { display: flex; gap: 10px; }
         input[type="text"] { flex-grow: 1; padding: 15px; border-radius: 8px; border: none; background-color: #45475a; color: white; outline: none; font-size: 16px; }
-        button { padding: 15px 25px; background-color: #89b4fa; color: #11111b; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s; }
+        button { padding: 15px 25px; background-color: #89b4fa; color: #11111b; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; }
         button:hover { background-color: #74c7ec; }
     </style>
 </head>
 <body>
-    <h2 style="text-align: center; margin-top: 0;">🧠 Athena IA (HD Local)</h2>
-    <div id="chat-box" style="display: flex; flex-direction: column;"></div>
+    <h2 style="text-align: center; margin-top: 0;">☁️ Athena IA (Conexão Nuvem ↔️ HD)</h2>
+    <div id="chat-box" style="display: flex; flex-direction: column;">
+        <div class="mensagem sistema">STATUS: Aguardando sincronização. <br>Para conectar ao HD, digite: /sync SEU_LINK_NGROK</div>
+    </div>
     
     <div class="input-area">
-        <input type="text" id="user-input" placeholder="Digite sua mensagem para o orquestrador..." onkeypress="handleEnter(event)">
+        <input type="text" id="user-input" placeholder="Digite sua mensagem ou comando /sync..." onkeypress="handleEnter(event)">
         <button onclick="enviarMensagem()">Enviar</button>
     </div>
 
     <script>
         const historico = [];
         
-        function appendMessage(sender, text, isUser) {
+        function appendMessage(sender, text, tipo) {
             const chatBox = document.getElementById('chat-box');
             const msgDiv = document.createElement('div');
-            msgDiv.className = 'mensagem ' + (isUser ? 'user' : 'ia');
+            msgDiv.className = 'mensagem ' + tipo;
             msgDiv.innerHTML = `<strong>${sender}:</strong><br>${text.replace(/\n/g, '<br>')}`;
             chatBox.appendChild(msgDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
@@ -71,7 +61,7 @@ HTML_CHAT = """
             const mensagem = inputField.value.trim();
             if (!mensagem) return;
 
-            appendMessage('Você', mensagem, true);
+            appendMessage('Você', mensagem, 'user');
             inputField.value = '';
 
             try {
@@ -83,14 +73,16 @@ HTML_CHAT = """
                 const data = await response.json();
                 
                 if(data.erro) {
-                    appendMessage('Erro', data.erro, false);
+                    appendMessage('Sistema', data.erro, 'sistema');
+                } else if(data.sistema) {
+                    appendMessage('Sistema', data.sistema, 'sistema');
                 } else {
-                    appendMessage('Athena IA', data.resposta, false);
+                    appendMessage('Athena IA', data.resposta, 'ia');
                     historico.push({ role: "user", content: mensagem });
                     historico.push({ role: "assistant", content: data.resposta });
                 }
             } catch (err) {
-                appendMessage('Sistema', 'Falha ao conectar com a IA.', false);
+                appendMessage('Sistema', 'Falha ao conectar com o servidor Render (Nuvem).', 'sistema');
             }
         }
 
@@ -101,31 +93,43 @@ HTML_CHAT = """
 """
 
 # ==========================================
-# 4. ROTAS DO SERVIDOR
+# 3. ROTAS E LÓGICA DE EXECUÇÃO
 # ==========================================
 @app.route('/')
 def home():
-    # Carrega a interface gráfica do chat direto no navegador
     return render_template_string(HTML_CHAT)
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    dados_usuario = request.json
-    mensagem = dados_usuario.get('mensagem')
-    historico = dados_usuario.get('historico', [])
+    dados = request.json
+    mensagem = dados.get('mensagem', '')
+    historico = dados.get('historico', [])
 
+    # Lógica de sincronização exigida: verifica e atualiza o acesso ao HD
+    if mensagem.startswith('/sync '):
+        novo_link = mensagem.split(' ', 1)[1].strip()
+        if novo_link.endswith('/'):
+            novo_link = novo_link[:-1]
+        CONFIG["ngrok_url"] = novo_link
+        return jsonify({"sistema": f"Sincronização iniciada! A nuvem (Render) agora acessa seu HD via: {novo_link}"})
+
+    if not CONFIG["ngrok_url"]:
+        return jsonify({"erro": "HD não sincronizado. Digite /sync [SEU_LINK_NGROK_AQUI] para estabelecer a conexão."})
+
+    # Instruções diretas para a IA
     prompt_sistema = (
-        "Você é um Agente Orquestrador Autônomo operando em um ambiente isolado. "
-        "Você tem capacidade de auxiliar no design de lógica e estruturação, implementando ativamente o "
-        "sistema de progresso hierárquico contendo os níveis: Inerte, Aspirante, Resiliente, Veterano e Elite. "
-        "Você é blindado e NÃO tem acesso a arquivos pessoais do usuário. Somente interaja com o contexto fornecido."
+        "Você é um Agente Orquestrador Autônomo processando requisições a partir do HD físico do usuário. "
+        "Seu foco inclui o desenvolvimento analítico da estrutura do projeto e a manutenção rígida do sistema de "
+        "progresso e engajamento hierárquico nos seguintes níveis: Inerte, Aspirante, Resiliente, Veterano e Elite. "
+        "Mantenha respostas pragmáticas."
     )
 
     mensagens_formatadas = [{"role": "system", "content": prompt_sistema}]
     mensagens_formatadas.extend(historico)
     mensagens_formatadas.append({"role": "user", "content": mensagem})
 
-    lm_studio_url = "http://127.0.0.1:1234/v1/chat/completions"
+    # A interface na Nuvem dispara a mensagem para o HD físico via Túnel
+    url_ia_hd = f"{CONFIG['ngrok_url']}/v1/chat/completions"
 
     payload = {
         "model": "local-model",
@@ -134,32 +138,17 @@ def chat():
     }
 
     try:
-        resposta_lm = requests.post(lm_studio_url, json=payload, timeout=120)
-        resposta_json = resposta_lm.json()
-        texto_ia = resposta_json['choices'][0]['message']['content']
+        # A tentativa rápida de busca de conexão exigida ocorre aqui
+        resposta_lm = requests.post(url_ia_hd, json=payload, timeout=45)
+        resposta_lm.raise_for_status()
         
-        salvar_historico_seguro(mensagem, texto_ia)
+        texto_ia = resposta_lm.json()['choices'][0]['message']['content']
         return jsonify({"resposta": texto_ia})
     
-    except requests.exceptions.ConnectionError:
-        return jsonify({"erro": "O servidor do LM Studio não está rodando. Abra o LM Studio e clique em 'Start Server'."}), 500
-
-def salvar_historico_seguro(usuario_msg, ia_msg):
-    caminho_arquivo = os.path.join(DADOS_DIR, 'historico_offline.json')
-    caminho_seguro = verificar_se_e_seguro(caminho_arquivo)
-    
-    historico = []
-    if os.path.exists(caminho_seguro):
-        with open(caminho_seguro, 'r', encoding='utf-8') as f:
-            historico = json.load(f)
-            
-    historico.append({"user": usuario_msg, "ia": ia_msg})
-    
-    with open(caminho_seguro, 'w', encoding='utf-8') as f:
-        json.dump(historico, f, ensure_ascii=False, indent=4)
+    except requests.exceptions.RequestException:
+        return jsonify({"erro": "Falha na sincronização imediata. O Render não conseguiu contatar o HD. Verifique se o Ngrok e o LM Studio estão rodando no seu computador."})
 
 if __name__ == '__main__':
-    print("🚀 Servidor Local Athena IA Iniciado!")
-    print("👉 Acesse a interface no seu navegador: http://127.0.0.1:5000")
-    # Roda exclusivamente localmente na porta 5000
-    app.run(host='127.0.0.1', port=5000)
+    # Libera a porta dinamicamente no Render
+    porta = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=porta)

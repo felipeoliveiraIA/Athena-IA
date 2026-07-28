@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import requests
 from flask import Flask, render_template, request, jsonify
 
@@ -10,8 +11,20 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 NGROK_URL = None
 ACTIVE_LOCAL_MODEL = "local-model"
+MEMORY_FILE = "athena_memory.json"
 
-chat_history = []
+def carregar_memoria():
+    if os.path.exists(MEMORY_FILE):
+        try:
+            with open(MEMORY_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def salvar_memoria(hist):
+    with open(MEMORY_FILE, 'w', encoding='utf-8') as f:
+        json.dump(hist, f, ensure_ascii=False, indent=2)
 
 def get_system_prompt(is_medical_mode=False):
     base_prompt = """Você é ATHENA, uma IA assistente pessoal avançada, inteligente e empática.
@@ -37,7 +50,7 @@ def index():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    global NGROK_URL, ACTIVE_LOCAL_MODEL, chat_history
+    global NGROK_URL, ACTIVE_LOCAL_MODEL
     
     data = request.get_json() or {}
     user_message = data.get('message', '').strip()
@@ -52,8 +65,9 @@ def chat():
         url_match = re.search(r'https?://[^\s<>\]\)]+', raw_url)
         url = url_match.group(0) if url_match else raw_url
         NGROK_URL = url.rstrip('/')
-        return jsonify({'response': f"🦉 **Sincronização HD Concluída!**\nConectado via Ngrok: `{NGROK_URL}`."})
+        return jsonify({'response': f"🦉 **Sincronização HD Concluída!**\nConectado via Ngrok: `{NGROK_URL}`. Memória sincronizada."})
 
+    chat_history = carregar_memoria()
     chat_history.append({"role": "user", "content": user_message})
     current_prompt = get_system_prompt(is_medical_mode)
 
@@ -69,6 +83,8 @@ def chat():
             response = requests.post(f"{NGROK_URL}/v1/chat/completions", json=payload, timeout=120)
             response.raise_for_status()
             ai_reply = response.json()['choices'][0]['message']['content']
+        except requests.exceptions.HTTPError as errh:
+            return jsonify({'response': f"❌ **Erro de Conexão (HD Local):** Verifique se o Ngrok foi iniciado com `ngrok http 1234` e se o Servidor do LM Studio está ligado. Detalhe técnico: {errh}"})
         except Exception as e:
             return jsonify({'response': f"❌ Erro HD Local: {str(e)}"})
     else:
@@ -89,10 +105,16 @@ def chat():
             response = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=60)
             response.raise_for_status()
             ai_reply = response.json()['choices'][0]['message']['content']
+        except requests.exceptions.HTTPError as errh:
+            if response.status_code == 402:
+                return jsonify({'response': "❌ **Erro Nuvem (402):** Saldo insuficiente no OpenRouter. Adicione créditos ou troque para um modelo gratuito na plataforma."})
+            return jsonify({'response': f"❌ Erro HTTP (Nuvem): {errh}"})
         except Exception as e:
             return jsonify({'response': f"❌ Erro Nuvem OpenRouter: {str(e)}"})
 
     chat_history.append({"role": "assistant", "content": ai_reply})
+    salvar_memoria(chat_history)
+    
     return jsonify({'response': ai_reply})
 
 if __name__ == '__main__':

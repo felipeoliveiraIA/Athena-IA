@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+import requests
 import urllib.request
 from flask import Flask, jsonify, render_template_string, request
 
@@ -17,7 +18,7 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A.T.H.E.N.A. OS - v5.2 Agentic Vibe Prime</title>
+    <title>A.T.H.E.N.A. OS - v5.3 Agentic Vibe Prime</title>
     <style>
         :root {
             --bg-negro: #09090b;
@@ -150,8 +151,9 @@ HTML_TEMPLATE = """
         <!-- Sidebar -->
         <div class="sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-title">⚡ A.T.H.E.N.A. OS</div>
-                <span class="badge-prime">v5.2 Prime</span>
+                <!-- LOGO ALTERADA PARA CORUJA 🦉 -->
+                <div class="sidebar-title">🦉 A.T.H.E.N.A. OS</div>
+                <span class="badge-prime">v5.3 Prime</span>
             </div>
             
             <div class="sidebar-actions">
@@ -182,6 +184,12 @@ HTML_TEMPLATE = """
                 </div>
                 
                 <div class="header-actions">
+                    <!-- ADIÇÃO ESTRATÉGICA 2: SELETOR DE MODO CLÍNICO / MÉDICO -->
+                    <select class="select-modern" id="medicalModeSelect" title="Modo de estruturação de raciocínio médico">
+                        <option value="normal">📋 Padrão Flow</option>
+                        <option value="semiologia">🩺 Caso Clínico & Semiológico (Etiologia/Fisiopatologia)</option>
+                    </select>
+
                     <select class="select-modern" id="modelSelect">
                         <option value="auto">⚡ Automática (Smart Vibe)</option>
                         <option value="gemini-flash">🧠 Gemini 2.0 Flash (Velocidade Extrema)</option>
@@ -189,7 +197,6 @@ HTML_TEMPLATE = """
                         <option value="llama-70b">🔥 Llama 3.3 70B Free (Robusto)</option>
                     </select>
                     
-                    <!-- VELOCIDADE ATUALIZADA: ADICIONADA OPÇÃO 2.0x -->
                     <select class="select-modern" id="speechSpeed" title="Velocidade da voz da IA">
                         <option value="0.75">0.75x</option>
                         <option value="1.0" selected>1.0x</option>
@@ -290,7 +297,7 @@ HTML_TEMPLATE = """
                 id: novoId, title: titulo,
                 messages: [{
                     id: "msg-" + Date.now(),
-                    text: `Sua sessão **${titulo}** foi iniciada. Conectada à internet, com memória ativa e voz jovem otimizada (v5.2). Como posso ajudar no seu flow hoje?`,
+                    text: `Sua sessão **${titulo}** foi iniciada. Conectada à internet, com memória ativa e suporte ao Obsidian (v5.3). Como posso ajudar no seu flow hoje?`,
                     sender: "athena", pinned: true,
                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 }]
@@ -350,10 +357,11 @@ HTML_TEMPLATE = """
                 const btnPinClass = msg.pinned ? "btn-action-msg active" : "btn-action-msg";
                 const btnPinText = msg.pinned ? "📌 Fixada" : "📍 Fixar";
                 
-                // BOTÃO OUVIR ADICIONADO PARA REPETIR RESPOSTAS DA IA
                 let botoesAcao = "";
                 if (msg.sender === 'athena') {
                     botoesAcao += `<button class="btn-action-msg" onclick="reproduzirMensagemPorId('${msg.id}')">🔊 Ouvir</button>`;
+                    // ADIÇÃO ESTRATÉGICA 1: BOTÃO DE EXPORTAÇÃO DIRETA PARA OBSIDIAN (.md)
+                    botoesAcao += `<button class="btn-action-msg" onclick="exportarParaObsidian('${msg.id}')" title="Baixar nota formatada para o Obsidian">💎 .md</button>`;
                 }
                 botoesAcao += `<button class="${btnPinClass}" onclick="alternarFixar('${msg.id}')">${btnPinText}</button>`;
                 
@@ -367,6 +375,26 @@ HTML_TEMPLATE = """
                 chatMessages.appendChild(div);
             });
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // ADIÇÃO ESTRATÉGICA 1 (FUNÇÃO DE EXPORTAÇÃO OBSIDIAN)
+        function exportarParaObsidian(id) {
+            const atual = conversas.find(c => c.id === activeChatId);
+            if (!atual) return;
+            const msg = atual.messages.find(m => m.id === id);
+            if (!msg) return;
+
+            const frontmatter = `---\\ndata: ${new Date().toISOString().split('T')[0]}\\ntags: [athena, estudo, semiologia, vibe-coding]\\n---\\n\\n`;
+            const conteudoMd = frontmatter + `# Nota Athena\\n\\n` + msg.text;
+            const blob = new Blob([conteudoMd], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Athena-Nota-${Date.now()}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         function reproduzirMensagemPorId(id) {
@@ -423,11 +451,10 @@ HTML_TEMPLATE = """
         }
         function removerAnexo() { anexoAtualBase64 = null; tipoAnexoAtual = null; fileInputGlobal.value = ""; previewBox.style.display = 'none'; }
 
-        // ================= VOZ ATUALIZADA (JOVEM E ELEGANTE) & LIVE MODE =================
+        // ================= VOZ & LIVE MODE =================
         function getVozFeminina() {
             const vozes = window.speechSynthesis.getVoices();
             const ptVozes = vozes.filter(v => v.lang.includes('pt') || v.lang.includes('BR'));
-            // Prioriza vozes jovens neurais e suaves em navegadores modernos
             const nomesJovens = ['thalita', 'francisca', 'victoria', 'yara', 'luciana', 'camila', 'natural', 'google português do brasil', 'female'];
             for (let nome of nomesJovens) {
                 const vozEncontrada = ptVozes.find(v => v.name.toLowerCase().includes(nome));
@@ -471,7 +498,6 @@ HTML_TEMPLATE = """
             }
         }
 
-        // ================= PIP (PICTURE-IN-PICTURE) =================
         async function ativarPiP() {
             const videoElement = document.getElementById('webcamVideo');
             if (document.pictureInPictureElement) {
@@ -501,7 +527,6 @@ HTML_TEMPLATE = """
                         if (estadoLive === 'ouvindo' && transcricaoAtual.trim().length > 1) {
                             estadoLive = 'processando'; try { speechRecognition.stop(); } catch(e){}
                             
-                            // COMANDO POR VOZ PARA REPETIR ÚLTIMA MENSAGEM
                             const comandoRepetir = /repita.*(última|mensagem|resposta|voz)|fale.*(novamente|de novo)/i;
                             if (comandoRepetir.test(transcricaoAtual)) {
                                 document.getElementById('liveTag').innerText = "🔊 Repetindo...";
@@ -544,14 +569,13 @@ HTML_TEMPLATE = """
             const utterance = new SpeechSynthesisUtterance(textoLimpo);
             utterance.voice = getVozFeminina(); utterance.lang = 'pt-BR';
             utterance.rate = parseFloat(document.getElementById('speechSpeed').value) || 1.0;
-            utterance.pitch = 1.08; // AJUSTE PARA TIMBRE MAIS JOVEM E ELEGANTE (~30 ANOS)
+            utterance.pitch = 1.08;
 
             utterance.onend = () => { document.getElementById('btnStopAudio').style.display = 'none'; estadoLive = 'parado'; if (modoLiveAtivo) { document.getElementById('liveTag').innerText = "🎤 Pode falar..."; iniciarReconhecimentoDeVoz(); } };
             utterance.onerror = () => { document.getElementById('btnStopAudio').style.display = 'none'; estadoLive = 'parado'; if (modoLiveAtivo) iniciarReconhecimentoDeVoz(); };
             window.speechSynthesis.speak(utterance);
         }
 
-        // ================= MEMÓRIA DO USUÁRIO =================
         function abrirModalMemoria() { document.getElementById('memoriaInput').value = userMemory; document.getElementById('modalMemoria').style.display = 'flex'; }
         function fecharModalMemoria() { document.getElementById('modalMemoria').style.display = 'none'; }
         function salvarMemoria() {
@@ -561,16 +585,16 @@ HTML_TEMPLATE = """
             alert("🧠 Perfil atualizado! A IA considerará isso em todas as respostas.");
         }
 
-        // ================= COMUNICAÇÃO COM O SERVIDOR =================
         chatInput.addEventListener('keypress', e => { if (e.key === 'Enter') enviarMensagem(); });
 
         async function enviarParaBackend(mensagemTexto, anexo) {
             const apiKey = apiKeyInput.value.trim();
             const atual = conversas.find(c => c.id === activeChatId);
+            const medicalMode = document.getElementById('medicalModeSelect').value;
             
             const typingDiv = document.createElement('div');
             typingDiv.id = "msgTyping"; typingDiv.className = "message athena typing-indicator";
-            typingDiv.innerHTML = "⚡ <i>Athena conectando à internet e raciocinando...</i>";
+            typingDiv.innerHTML = "🦉 <i>Athena conectando à internet e raciocinando...</i>";
             chatMessages.appendChild(typingDiv); chatMessages.scrollTop = chatMessages.scrollHeight;
             document.getElementById('statusSubtext').innerText = "Processando...";
 
@@ -585,7 +609,7 @@ HTML_TEMPLATE = """
                     body: JSON.stringify({ 
                         mensagem: mensagemTexto, api_key: apiKey, anexo: anexo, 
                         historico: contextoEnvio, modelo_pref: document.getElementById('modelSelect').value,
-                        user_memory: userMemory 
+                        user_memory: userMemory, medical_mode: medicalMode 
                     })
                 });
                 const data = await res.json();
@@ -646,7 +670,6 @@ HTML_TEMPLATE = """
 def index():
     return render_template_string(HTML_TEMPLATE)
 
-# ================= FERRAMENTAS AGENTICAS NO BACKEND =================
 def vasculhar_web(url_ou_termo):
     """Lê o texto limpo de uma página web ou faz busca básica de links"""
     try:
@@ -658,7 +681,6 @@ def vasculhar_web(url_ou_termo):
         )
         with urllib.request.urlopen(req, timeout=8) as response:
             html = response.read().decode('utf-8', errors='ignore')
-            # Extração simples de texto removendo tags
             import re
             texto = re.sub(r'<[^>]+>', ' ', html)
             texto = re.sub(r'\s+', ' ', texto).strip()
@@ -675,6 +697,7 @@ def processar_chat():
     historico = dados.get("historico", [])
     modelo_pref = dados.get("modelo_pref", "auto")
     user_memory = dados.get("user_memory", "")
+    medical_mode = dados.get("medical_mode", "normal")
     
     if not api_key or api_key.strip() == "" or "sua-chave" in api_key:
         api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -682,13 +705,20 @@ def processar_chat():
     if not api_key or "sua-chave" in api_key:
         return jsonify({"status": "erro", "resposta": "Nenhuma chave API configurada. Insira na barra lateral ou no código."})
 
-    # Verificação de Acesso Web Automático
     contexto_extra = ""
     if "vasculhar" in mensagem.lower() or "acessar" in mensagem.lower() or "http" in mensagem.lower() or "pesquise na web" in mensagem.lower():
         import re
         urls = re.findall(r'(https?://\S+)', mensagem)
         alvo = urls[0] if urls else mensagem
         contexto_extra = "\n\n" + vasculhar_web(alvo)
+
+    # ADIÇÃO ESTRATÉGICA 2: DIRETRIZ DE MODO CLÍNICO / SEMIOLÓGICO NO PROMPT
+    instrucao_medica = ""
+    if medical_mode == "semiologia":
+        instrucao_medica = (
+            "\n\n[MODO CLÍNICO & SEMIOLÓGICO ATIVO]: Responda estruturando estritamente o conteúdo nos seguintes tópicos: "
+            "1. Etiologia | 2. Fisiopatologia | 3. Critérios de Diferenciação Diagnóstica | 4. Manobras Semiológicas / Conduta Prática."
+        )
 
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
@@ -705,7 +735,8 @@ def processar_chat():
             "estudos médicos/clínicos (semiologia, patologia) e estratégias de alta performance (Flow, FIRE). "
             "Sua persona é de uma mulher adulta jovem (~30 anos), brilhante, extremamente elegante, pragmática e acolhedora. "
             f"\n\n[MEMÓRIA E PERFIL DO USUÁRIO]: {user_memory}"
-            "\n\nInstrução: Priorize gerar código limpo, formatação em Markdown (ideal para Obsidian) e explicações direto ao ponto."
+            f"{instrucao_medica}"
+            "\n\nInstrução: Priorize gerar código limpo, formatação em Markdown (perfeita para o Obsidian) e explicações direto ao ponto."
         )
     }
     

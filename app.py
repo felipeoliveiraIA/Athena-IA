@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 import requests
+import re
 
 app = Flask(__name__)
 
@@ -23,11 +24,20 @@ def chat():
     if not user_message:
         return jsonify({'error': 'Mensagem vazia.'})
 
-    # Intercepta o comando de sincronização do Ngrok
+    # Intercepta o comando de sincronização do Ngrok com limpeza automática de URL
     if user_message.startswith('/sync '):
-        url = user_message.split(' ', 1)[1].strip()
+        raw_url = user_message.split(' ', 1)[1].strip()
+        
+        # Extrai apenas o endereço HTTP/HTTPS válido usando Regex (remove colchetes, parênteses e lixo)
+        url_match = re.search(r'https?://[^\s<>\]\)]+', raw_url)
+        if url_match:
+            url = url_match.group(0)
+        else:
+            url = raw_url
+            
         if url.endswith('/'): 
             url = url[:-1]
+            
         NGROK_URL = url
         return jsonify({'response': f"✅ **Sincronização Concluída!**\n\nConexão estabelecida com o HD em: `{NGROK_URL}`.\nComo posso te ajudar agora, Luiz?"})
 
@@ -40,7 +50,7 @@ def chat():
 
     # Prepara o pacote para enviar ao LM Studio
     payload = {
-        "model": "local-model", # O LM Studio carrega o Qwen automaticamente
+        "model": "local-model",
         "messages": chat_history,
         "temperature": 0.7
     }
@@ -59,10 +69,8 @@ def chat():
         return jsonify({'response': ai_reply})
 
     except requests.exceptions.RequestException as e:
-        # Se der erro, removemos a pergunta da memória para não bugar o fluxo
         chat_history.pop()
         return jsonify({'response': f"❌ **Falha na conexão com o Qwen2.5.**\n\nVerifique se a tela preta do Ngrok está aberta e se o Local API do LM Studio está 'Running'.\n\n*Detalhe técnico: {str(e)}*"})
 
 if __name__ == '__main__':
-    # Configuração exigida pelo Render
     app.run(host='0.0.0.0', port=10000)

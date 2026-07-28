@@ -5,7 +5,6 @@ from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
 
-# Puxa a chave oculta do Render
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MEMORY_FILE = "athena_memory.json"
@@ -24,17 +23,13 @@ def salvar_memoria(hist):
         json.dump(hist, f, ensure_ascii=False, indent=2)
 
 def get_system_prompt(is_medical_mode=False):
-    base_prompt = """Você é ATHENA, uma IA assistente pessoal avançada e pragmática.
-Áreas de expertise: Web Design focado em conversão e UX, e Desenvolvimento de Apps Gamificados.
-
-DIRETRIZ DE PROGRESSÃO (APP DO USUÁRIO):
-A hierarquia oficial de níveis é: 1. Inerte, 2. Aspirante, 3. Resiliente, 4. Veterano, 5. Elite.
-Use formatação Markdown (negrito, listas) para deixar a leitura impecável."""
+    base_prompt = """Você é ATHENA, uma IA assistente pessoal avançada.
+Áreas de expertise: Web Design focado em conversão, automação e Desenvolvimento de Apps Gamificados.
+DIRETRIZ DE PROGRESSÃO (APP): A hierarquia oficial de níveis é: 1. Inerte, 2. Aspirante, 3. Resiliente, 4. Veterano, 5. Elite.
+Use formatação Markdown (negrito, listas) para estruturar suas respostas."""
 
     medical_prompt = """\n\nDIRETRIZ CLÍNICA/SEMIOLÓGICA:
-Estruture OBRIGATORIAMENTE respostas médicas na ordem:
-1. Etiologia | 2. Fisiopatologia | 3. Critérios Diagnósticos | 4. Conduta.
-Seja preciso e técnico."""
+Estruture respostas médicas na ordem: 1. Etiologia | 2. Fisiopatologia | 3. Critérios Diagnósticos | 4. Conduta."""
 
     return base_prompt + (medical_prompt if is_medical_mode else "")
 
@@ -46,53 +41,57 @@ def index():
 def chat():
     data = request.get_json() or {}
     user_message = data.get('message', '').strip()
+    image_base64 = data.get('image', None) # Recebe a imagem se houver
     selected_model = data.get('model', 'google/gemini-2.0-flash-exp:free')
     is_medical_mode = data.get('medical_mode', False)
 
-    if not user_message:
-        return jsonify({'error': 'Mensagem vazia.'}), 400
+    if not user_message and not image_base64:
+        return jsonify({'error': 'Mensagem e/ou imagem vazia.'}), 400
 
     chat_history = carregar_memoria()
-    chat_history.append({"role": "user", "content": user_message})
     
+    # Prepara o conteúdo (Texto puro ou Texto + Imagem)
+    if image_base64:
+        msg_content = [
+            {"type": "text", "text": user_message if user_message else "Analise esta imagem."},
+            {"type": "image_url", "image_url": {"url": image_base64}}
+        ]
+    else:
+        msg_content = user_message
+
+    chat_history.append({"role": "user", "content": msg_content})
+    
+    # Monta o payload final
     current_prompt = get_system_prompt(is_medical_mode)
     messages_payload = [{"role": "system", "content": current_prompt}] + chat_history
 
-    # LÓGICA 100% LOCAL (LM Studio sem Ngrok)
-    if selected_model == 'local-hd':
-        try:
-            # Aponta diretamente para o seu PC (porta 1234 do LM Studio)
+    try:
+        if selected_model == 'local-hd':
+            # Roteamento Local (LM Studio na porta 1234)
             response = requests.post("http://127.0.0.1:1234/v1/chat/completions", 
                                      json={"model": "local-model", "messages": messages_payload, "temperature": 0.7}, 
                                      timeout=120)
-            response.raise_for_status()
-            ai_reply = response.json()['choices'][0]['message']['content']
-        except Exception as e:
-            return jsonify({'error': f"Erro no HD Local: Verifique se o LM Studio está ligado na porta 1234. Detalhe: {str(e)}"}), 500
-
-    # LÓGICA NUVEM (OpenRouter)
-    else:
-        if not OPENROUTER_API_KEY:
-            return jsonify({'error': "Chave OPENROUTER_API_KEY não encontrada no Render."}), 500
-        
-        headers = {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        try:
+        else:
+            # Roteamento Nuvem (OpenRouter)
+            if not OPENROUTER_API_KEY:
+                return jsonify({'error': "Chave da API não configurada no servidor."}), 500
+            headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"}
             response = requests.post(OPENROUTER_URL, headers=headers, 
                                      json={"model": selected_model, "messages": messages_payload, "temperature": 0.7}, 
                                      timeout=60)
-            response.raise_for_status()
-            ai_reply = response.json()['choices'][0]['message']['content']
-        except Exception as e:
-            return jsonify({'error': f"Erro na Nuvem ({response.status_code}): Tente outro modelo ou verifique a API. Detalhe: {str(e)}"}), 500
+            
+        response.raise_for_status()
+        ai_reply = response.json()['choices'][0]['message']['content']
+        
+    except Exception as e:
+        chat_history.pop() # Remove a mensagem se falhou para não corromper o histórico
+        return jsonify({'error': f"Falha de conexão: {str(e)}"}), 500
 
-    chat_history.append({"role": "assistant", "content": ai_reply})
-    salvar_memoria(chat_history)
+    # Salva apenas o texto da IA e do usuário (evita salvar a imagem gigante no histórico JSON)
+    hist_to_save = chat_history[:-1] + [{"role": "user", "content": user_message or "[Imagem enviada]"}, {"role": "assistant", "content": ai_reply}]
+    salvar_memoria(hist_to_save)
     
     return jsonify({'response': ai_reply})
 
 if __name__ == '__main__':
-    # Roda em todas as interfaces para funcionar no Render e Local
     app.run(host='0.0.0.0', port=10000)

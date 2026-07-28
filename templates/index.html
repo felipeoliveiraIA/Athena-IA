@@ -5,163 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>A.T.H.E.N.A. OS v5.2 Prime</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
-            --bg-dark: #0f1012;
-            --sidebar-bg: #16181d;
-            --card-bg: #1f222a;
-            --accent-orange: #ff9800;
-            --accent-hover: #e68a00;
-            --text-main: #f0f0f0;
-            --text-muted: #9a9ea7;
-            --border-color: #2a2e39;
+            --bg-dark: #0f1012; --sidebar-bg: #16181d; --card-bg: #1f222a;
+            --accent-orange: #ff9800; --accent-hover: #e68a00;
+            --text-main: #f0f0f0; --text-muted: #9a9ea7; --border-color: #2a2e39;
         }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
         body { background-color: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; overflow: hidden; }
-
-        /* SIDEBAR */
         .sidebar { width: 280px; background-color: var(--sidebar-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 15px; gap: 12px; }
-        .brand { display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 1.1rem; color: #fff; padding: 5px 0; }
-        .badge-prime { background: var(--accent-orange); color: #000; font-size: 0.75rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
-        .btn-new-chat { background: var(--accent-orange); color: #000; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
-        .btn-new-chat:hover { background: var(--accent-hover); }
-        .menu-item { background: var(--card-bg); color: var(--text-main); padding: 10px 12px; border-radius: 8px; font-size: 0.88rem; display: flex; align-items: center; gap: 10px; cursor: pointer; border: 1px solid transparent; }
-        .menu-item:hover { border-color: var(--accent-orange); }
-        .chat-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-        .chat-item { padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-muted); cursor: pointer; }
-        .chat-item.active { border-color: var(--accent-orange); color: #fff; background: rgba(255, 152, 0, 0.05); }
-
-        /* MAIN CONTAINER */
-        .main-container { flex: 1; display: flex; flex-direction: column; }
-
-        /* TOPBAR */
+        .brand { font-weight: bold; font-size: 1.1rem; color: #fff; }
+        .badge-prime { background: var(--accent-orange); color: #000; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; }
+        .btn-new-chat { background: var(--accent-orange); color: #000; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .main-container { flex: 1; display: flex; flex-direction: column; position: relative; }
         .topbar { background-color: var(--sidebar-bg); border-bottom: 1px solid var(--border-color); padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        .chat-header-info { display: flex; align-items: center; gap: 12px; }
-        .avatar-circle { width: 38px; height: 38px; border-radius: 50%; background: var(--accent-orange); color: #000; font-weight: bold; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; }
-        .chat-title-text { font-size: 0.95rem; font-weight: bold; }
-        .chat-subtitle { font-size: 0.75rem; color: #4caf50; font-weight: 600; }
-
-        .topbar-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .select-custom { background: var(--card-bg); color: #fff; border: 1px solid var(--border-color); padding: 7px 12px; border-radius: 6px; font-size: 0.82rem; outline: none; cursor: pointer; }
-        .select-custom:focus { border-color: var(--accent-orange); }
-        
-        .btn-live { background: rgba(76, 175, 80, 0.15); color: #4caf50; border: 1px solid #4caf50; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-        .btn-live.active { background: #4caf50; color: #000; }
-        .btn-stop-audio { background: rgba(244, 67, 54, 0.15); color: #f44336; border: 1px solid #f44336; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
-
-        /* CHAT BOX */
+        .select-custom { background: var(--card-bg); color: #fff; border: 1px solid var(--border-color); padding: 7px; border-radius: 6px; outline: none; }
+        .btn-action { background: rgba(255, 255, 255, 0.1); color: #fff; border: none; padding: 7px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;}
+        .btn-action:hover { background: rgba(255, 255, 255, 0.2); }
+        .btn-live.active { background: #4caf50; color: #000; font-weight: bold; }
+        .btn-stop { color: #f44336; }
         .chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
-        .message-row { display: flex; flex-direction: column; max-width: 82%; }
+        .message-row { display: flex; flex-direction: column; max-width: 85%; }
         .message-row.user { align-self: flex-end; }
         .message-row.ai { align-self: flex-start; }
-
-        .bubble { padding: 12px 16px; border-radius: 8px; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
-        .user .bubble { background: var(--accent-orange); color: #000; font-weight: 500; border-bottom-right-radius: 2px; }
-        .ai .bubble { background: var(--card-bg); color: var(--text-main); border-left: 3px solid var(--accent-orange); border-bottom-left-radius: 2px; }
-
-        .bubble-footer { display: flex; align-items: center; gap: 12px; margin-top: 5px; font-size: 0.75rem; color: var(--text-muted); }
-        .user .bubble-footer { justify-content: flex-end; }
-        .action-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; }
+        .bubble { padding: 14px 18px; border-radius: 8px; font-size: 0.95rem; line-height: 1.6; word-break: break-word; }
+        .user .bubble { background: var(--accent-orange); color: #000; border-bottom-right-radius: 2px; }
+        .ai .bubble { background: var(--card-bg); border-left: 3px solid var(--accent-orange); border-bottom-left-radius: 2px; }
+        .bubble-footer { display: flex; align-items: center; gap: 12px; margin-top: 5px; font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap; }
+        .action-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; }
         .action-btn:hover { color: var(--accent-orange); }
-
-        /* INPUT AREA */
         .input-container { padding: 15px 20px; background: var(--sidebar-bg); border-top: 1px solid var(--border-color); }
-        .input-box-wrapper { display: flex; align-items: center; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 12px; gap: 10px; }
-        .input-box-wrapper:focus-within { border-color: var(--accent-orange); }
-        .chat-input { flex: 1; background: none; border: none; color: #fff; font-size: 0.92rem; outline: none; padding: 8px 0; }
-        .input-icon-btn { background: none; border: none; color: var(--text-muted); font-size: 1.1rem; cursor: pointer; padding: 5px; }
-        .input-icon-btn:hover { color: var(--accent-orange); }
-        .btn-send { background: var(--accent-orange); color: #000; border: none; width: 36px; height: 36px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
-        .btn-send:hover { background: var(--accent-hover); }
+        .input-box-wrapper { display: flex; align-items: flex-end; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 8px 12px; gap: 10px; }
+        .chat-input { flex: 1; background: none; border: none; color: #fff; font-size: 0.95rem; outline: none; resize: none; min-height: 24px; max-height: 150px; padding: 4px 0; }
+        .btn-send { background: var(--accent-orange); color: #000; border: none; width: 40px; height: 40px; border-radius: 8px; cursor: pointer; }
+        /* Markdown Styles Inside Bubble */
+        .ai .bubble h1, .ai .bubble h2, .ai .bubble h3 { margin-bottom: 10px; color: var(--accent-orange); }
+        .ai .bubble p { margin-bottom: 10px; }
+        .ai .bubble ul, .ai .bubble ol { margin-left: 20px; margin-bottom: 10px; }
+        .ai .bubble code { background: rgba(0,0,0,0.3); padding: 2px 5px; border-radius: 4px; font-family: monospace; }
+        .ai .bubble pre code { display: block; padding: 10px; overflow-x: auto; }
     </style>
 </head>
 <body>
-
-    <!-- SIDEBAR -->
-    <div class="sidebar">
-        <div class="brand">
-            <span>⚡ A.T.H.E.N.A. OS</span>
-            <span class="badge-prime">v5.2 Prime</span>
-        </div>
-        
-        <button class="btn-new-chat" onclick="clearChat()">
-            <i class="fa-solid fa-plus"></i> Nova Conversa
-        </button>
-
-        <div class="menu-item">
-            <i class="fa-solid fa-brain" style="color: var(--accent-orange);"></i>
-            <span>Memória & Perfil (Aprender)</span>
-        </div>
-
-        <div class="chat-list">
-            <div class="chat-item active">
-                <i class="fa-solid fa-message"></i> Nossa 1ª conversa (Local)
-                <div style="font-size: 0.7rem; color: #4caf50; margin-top: 3px;">Conexão pronta</div>
-            </div>
-        </div>
+    <div class="sidebar" id="sidebar">
+        <div class="brand">⚡ A.T.H.E.N.A. OS <span class="badge-prime">v5.2</span></div>
+        <button class="btn-new-chat" onclick="location.reload()"><i class="fa-solid fa-plus"></i> Nova Sessão</button>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 20px;">Integrações:</div>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor:pointer;">
+            <input type="checkbox" id="medicalMode"> <i class="fa-solid fa-stethoscope" style="color:#ff9800;"></i> Modo Semiológico
+        </label>
     </div>
 
-    <!-- MAIN CHAT -->
-    <div class="main-container">
-        <!-- TOPBAR -->
+    <div class="main-container" id="mainContainer">
         <div class="topbar">
-            <div class="chat-header-info">
-                <div class="avatar-circle">AT</div>
-                <div>
-                    <div class="chat-title-text">Sessão HD Principal</div>
-                    <div class="chat-subtitle">Pronta para receber comandos</div>
-                </div>
-            </div>
-
-            <div class="topbar-controls">
-                <!-- SELETOR DE MODELOS -->
-                <select id="modelSelector" class="select-custom">
-                    <option value="qwen/qwen-2.5-7b-instruct">⚡ Automática (Qwen 2.5)</option>
-                    <option value="google/gemini-flash-1.5">🌐 OpenRouter (Gemini 1.5 Flash)</option>
-                    <option value="meta-llama/llama-3.3-70b-instruct">🧠 OpenRouter (Llama 3.3 70B)</option>
-                    <option value="local-hd">💻 HD Local (LM Studio / Qwen)</option>
-                </select>
-
-                <!-- SELETOR DE VELOCIDADE DE VOZ -->
-                <select id="voiceSpeed" class="select-custom" title="Velocidade de Fala">
+            <select id="modelSelector" class="select-custom">
+                <option value="qwen/qwen-2.5-coder-32b-instruct">⚡ Nuvem (Qwen 2.5 Coder 32B)</option>
+                <option value="google/gemini-flash-1.5">👁️ Nuvem (Gemini 1.5 Flash - Visão)</option>
+                <option value="meta-llama/llama-3.3-70b-instruct">🧠 Nuvem (Llama 3.3 70B)</option>
+                <option value="local-hd">💻 HD Local (LM Studio)</option>
+            </select>
+            
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <select id="voiceSpeed" class="select-custom" title="Velocidade da Voz">
                     <option value="0.75">0.75x</option>
                     <option value="1.0" selected>1.0x</option>
                     <option value="1.25">1.25x</option>
                     <option value="1.5">1.5x</option>
-                    <option value="2.0">2.0x</option>
                 </select>
-
-                <!-- BOTÃO MODO LIVE -->
-                <button id="btnLive" class="btn-live" onclick="toggleLiveMode()">
-                    <i class="fa-solid fa-circle"></i> Modo Live
-                </button>
-
-                <!-- BOTÃO PARAR VOZ -->
-                <button class="btn-stop-audio" onclick="stopSpeech()" title="Interromper Áudio">
-                    <i class="fa-solid fa-square"></i>
-                </button>
+                <button id="btnLive" class="btn-action btn-live" onclick="toggleLiveMode()"><i class="fa-solid fa-microphone-lines"></i> Live</button>
+                <button class="btn-action btn-stop" onclick="stopSpeech()"><i class="fa-solid fa-circle-stop"></i></button>
+                <button class="btn-action" onclick="openPiP()" title="Destacar Janela"><i class="fa-solid fa-clone"></i> PiP</button>
             </div>
         </div>
 
-        <!-- AREA DE MENSAGENS -->
         <div class="chat-box" id="chatBox">
-            <div class="message-row ai">
-                <div class="bubble">🦉 Olá! Sou a Athena. Todos os sistemas estão operacionais. Como posso auxiliar seus estudos, projetos de web design ou o desenvolvimento do seu app hoje?</div>
-                <div class="bubble-footer">
-                    <span>12:00</span>
-                    <button class="action-btn" onclick="speakText(this.parentElement.previousElementSibling.innerText)"><i class="fa-solid fa-volume-high"></i> Ouvir</button>
-                    <button class="action-btn" onclick="togglePin(this)"><i class="fa-solid fa-thumbtack"></i> Fixar</button>
-                </div>
-            </div>
+            <!-- Messages go here -->
         </div>
 
-        <!-- INPUT BAR -->
-        <div class="input-container">
+        <div class="input-container" id="inputWrapper">
             <div class="input-box-wrapper">
-                <button class="input-icon-btn" title="Anexar arquivo"><i class="fa-solid fa-paperclip"></i></button>
-                <input type="text" id="userInput" class="chat-input" placeholder="Digite sua mensagem, ou o comando /sync..." onkeypress="if(event.key === 'Enter') sendMessage()">
-                <button class="input-icon-btn" onclick="startVoiceInput()" title="Falar por Voz"><i class="fa-solid fa-microphone"></i></button>
+                <textarea id="userInput" class="chat-input" rows="1" placeholder="Mensagem (Shift+Enter para pular linha)..." oninput="autoResize(this)" onkeydown="handleEnter(event)"></textarea>
                 <button class="btn-send" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
@@ -169,122 +93,182 @@
 
     <script>
         let liveMode = false;
-        let femaleVoice = null;
+        let recognition = null;
+        let lastAiMessage = ""; 
+        let ws = null; // WebSocket local agent
 
-        // CARREGAR VOZ FEMININA EM PORTUGUÊS (pt-BR)
-        function initVoices() {
+        // Textarea WhatsApp style
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+            
+            // Auto-format lists
+            let val = textarea.value;
+            let lines = val.split('\n');
+            let lastLine = lines[lines.length - 1];
+            if (lastLine === "- " || lastLine.match(/^\d+\. $/)) {
+                // Prepares visually but real handling is complex in simple textareas.
+            }
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Voice Engine - Hunts for Neural/Young voices
+        function getBestVoice(langPrefix) {
             const voices = window.speechSynthesis.getVoices();
-            femaleVoice = voices.find(v => v.lang.includes('pt') && (
-                v.name.toLowerCase().includes('female') || 
-                v.name.toLowerCase().includes('luciana') || 
-                v.name.toLowerCase().includes('francisca') || 
-                v.name.toLowerCase().includes('helena') || 
-                v.name.toLowerCase().includes('maria') || 
-                v.name.toLowerCase().includes('google')
-            )) || voices.find(v => v.lang.includes('pt')) || voices[0];
+            return voices.find(v => v.lang.startsWith(langPrefix) && (v.name.includes('Neural') || v.name.includes('Online') || v.name.includes('Google'))) 
+                   || voices.find(v => v.lang.startsWith(langPrefix)) || voices[0];
         }
-        window.speechSynthesis.onvoiceschanged = initVoices;
 
-        function sendMessage() {
-            const input = document.getElementById('userInput');
-            const message = input.value.trim();
-            const model = document.getElementById('modelSelector').value;
-            if (!message) return;
+        function detectLanguage(text) {
+            if (text.match(/[áéíóúñ¿¡]/i) && !text.includes('ão')) return 'es-ES'; // Heurística simples
+            if (text.match(/\b(the|is|are|you|we)\b/i)) return 'en-US';
+            return 'pt-BR';
+        }
 
-            appendMessage(message, 'user');
-            input.value = '';
+        function speakText(text) {
+            window.speechSynthesis.cancel();
+            const cleanText = text.replace(/[*#_`]/g, ''); 
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            
+            const lang = detectLanguage(cleanText);
+            utterance.lang = lang;
+            const voice = getBestVoice(lang.split('-')[0]);
+            if (voice) utterance.voice = voice;
+            
+            utterance.rate = parseFloat(document.getElementById('voiceSpeed').value);
+            window.speechSynthesis.speak(utterance);
+        }
 
-            fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: message, model: model })
-            })
-            .then(res => res.json())
-            .then(data => {
-                const reply = data.response || "❌ Erro ao obter resposta.";
-                appendMessage(reply, 'ai');
+        function stopSpeech() { window.speechSynthesis.cancel(); }
+
+        // Live Mode (Speech Recognition)
+        function toggleLiveMode() {
+            const btn = document.getElementById('btnLive');
+            liveMode = !liveMode;
+            btn.classList.toggle('active', liveMode);
+            
+            if (liveMode) {
+                if (!('webkitSpeechRecognition' in window)) { alert("Navegador não suporta voz ao vivo."); return; }
+                recognition = new webkitSpeechRecognition();
+                recognition.lang = 'pt-BR';
+                recognition.continuous = true;
+                recognition.interimResults = false;
                 
-                if (liveMode) {
-                    speakText(reply);
-                }
-            })
-            .catch(() => appendMessage("❌ Erro de conexão com o servidor.", 'ai'));
+                recognition.onresult = (e) => {
+                    const transcript = e.results[e.results.length - 1][0].transcript.trim().toLowerCase();
+                    if (transcript.includes("repita a última resposta") || transcript.includes("repetir a resposta")) {
+                        if(lastAiMessage) speakText(lastAiMessage);
+                    } else {
+                        document.getElementById('userInput').value = transcript;
+                        sendMessage();
+                    }
+                };
+                recognition.start();
+            } else {
+                if(recognition) recognition.stop();
+            }
         }
 
+        // PiP Mode
+        async function openPiP() {
+            if (!('documentPictureInPicture' in window)) {
+                alert("PiP não suportado (Requer Chrome/Edge desktop recente).");
+                return;
+            }
+            const pipWindow = await documentPictureInPicture.requestWindow({ width: 450, height: 650 });
+            const container = document.getElementById('mainContainer');
+            pipWindow.document.body.appendChild(container);
+            
+            // Bring back on close
+            pipWindow.addEventListener("pagehide", () => {
+                document.body.appendChild(container);
+            });
+        }
+
+        // Obsidian Export
+        function exportObsidian(btnElement, text) {
+            const date = new Date().toISOString().split('T')[0];
+            const isMed = document.getElementById('medicalMode').checked;
+            const tags = isMed ? "[#semiologia, #medicina, #vibe-coding]" : "[#vibe-coding, #athena]";
+            
+            const frontmatter = `---\ndate: ${date}\ntags: ${tags}\n---\n\n`;
+            const blob = new Blob([frontmatter + text], { type: "text/markdown;charset=utf-8" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `Athena_Export_${date}.md`;
+            a.click();
+        }
+
+        // Chat Logic
         function appendMessage(text, sender) {
             const box = document.getElementById('chatBox');
-            const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            
             const row = document.createElement('div');
             row.className = `message-row ${sender}`;
             
-            let footerHtml = sender === 'ai' ? `
+            const content = sender === 'ai' ? marked.parse(text) : text.replace(/\n/g, '<br>');
+            
+            let footer = sender === 'ai' ? `
                 <div class="bubble-footer">
-                    <span>${now}</span>
                     <button class="action-btn" onclick="speakText(this.parentElement.previousElementSibling.innerText)"><i class="fa-solid fa-volume-high"></i> Ouvir</button>
-                    <button class="action-btn" onclick="togglePin(this)"><i class="fa-solid fa-thumbtack"></i> Fixar</button>
+                    <button class="action-btn" onclick="exportObsidian(this, \`${text.replace(/`/g, '\\`')}\`)"><i class="fa-solid fa-gem"></i> Salvar no Obsidian</button>
                 </div>
-            ` : `
-                <div class="bubble-footer"><span>${now}</span></div>
-            `;
+            ` : '';
 
-            row.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>${footerHtml}`;
+            row.innerHTML = `<div class="bubble">${content}</div>${footer}`;
             box.appendChild(row);
             box.scrollTop = box.scrollHeight;
         }
 
-        function speakText(text) {
-            window.speechSynthesis.cancel(); // Para fala anterior
-            const speed = parseFloat(document.getElementById('voiceSpeed').value);
-            const cleanText = text.replace(/[*#`_]/g, ''); // Limpa markdown
-            
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.lang = 'pt-BR';
-            utterance.rate = speed;
-            if (femaleVoice) utterance.voice = femaleVoice;
-            
-            window.speechSynthesis.speak(utterance);
-        }
+        function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            if (!message) return;
 
-        function stopSpeech() {
-            window.speechSynthesis.cancel();
-        }
+            appendMessage(message, 'user');
+            input.value = '';
+            input.style.height = 'auto'; // reset height
 
-        function toggleLiveMode() {
-            liveMode = !liveMode;
-            const btn = document.getElementById('btnLive');
-            btn.classList.toggle('active', liveMode);
-        }
-
-        function togglePin(btn) {
-            btn.style.color = btn.style.color === 'rgb(255, 152, 0)' ? '' : '#ff9800';
-        }
-
-        function clearChat() {
-            document.getElementById('chatBox').innerHTML = '';
-            appendMessage("🦉 Nova conversa iniciada. Como posso ajudar?", 'ai');
-        }
-
-        function startVoiceInput() {
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                alert("Seu navegador não suporta ditado por voz.");
-                return;
-            }
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'pt-BR';
-            recognition.start();
-
-            recognition.onresult = function(event) {
-                document.getElementById('userInput').value = event.results[0][0].transcript;
+            const payload = {
+                message: message,
+                model: document.getElementById('modelSelector').value,
+                medical_mode: document.getElementById('medicalMode').checked
             };
+
+            fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                lastAiMessage = data.response;
+                appendMessage(data.response, 'ai');
+                if (liveMode) speakText(data.response);
+                
+                // WebSocket Local Automation trigger check
+                if(data.response.includes("[CMD_LOCAL]") && ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(data.response);
+                }
+            })
+            .catch(() => appendMessage("❌ Erro de rede.", 'ai'));
         }
 
-        function escapeHtml(text) {
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        // Connect Local Automation WebSocket
+        function connectLocalAgent() {
+            ws = new WebSocket("ws://localhost:8765");
+            ws.onopen = () => console.log("Conectado ao Agente Local");
+            ws.onerror = () => console.log("Agente local não detectado (opcional).");
         }
-
-        initVoices();
+        
+        window.speechSynthesis.onvoiceschanged = getBestVoice;
+        setTimeout(connectLocalAgent, 2000);
+        appendMessage("🦉 Athena OS iniciada. Todos os sistemas otimizados. Pronta para os seus projetos.", 'ai');
     </script>
 </body>
 </html>

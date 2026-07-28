@@ -2,21 +2,20 @@ import os
 import re
 import requests
 from flask import Flask, render_template, request, jsonify
-import google.generativeai as genai
 
 app = Flask(__name__)
 
-# Configuração da Nuvem (Gemini)
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    cloud_model = genai.GenerativeModel('gemini-1.5-flash')
+# Configuração do OpenRouter na Nuvem
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+# Modelo padrão na nuvem via OpenRouter (ex: Qwen Coder ou outro de sua preferência)
+CLOUD_MODEL = "qwen/qwen-2.5-7b-instruct"
 
 # Variáveis do HD Local (LM Studio)
 NGROK_URL = None
 ACTIVE_LOCAL_MODEL = "local-model"
 
-# Memória unificada com contexto avançado de projetos
+# Memória unificada e diretrizes de projeto
 chat_history = []
 system_prompt = """Você é a Athena, uma IA assistente avançada. 
 Sua função é auxiliar em medicina, web design (foco em conversão) e desenvolvimento de apps.
@@ -54,19 +53,30 @@ def chat():
 
     chat_history.append({"role": "user", "content": user_message})
 
-    # ROTEAMENTO: NUVEM (GEMINI)
+    # ROTEAMENTO: NUVEM (VIA OPENROUTER)
     if target_mode == 'cloud':
-        if not GEMINI_API_KEY:
-            return jsonify({'response': "⚠️ Chave API do Gemini ausente no Render (Environment Variables)."})
+        if not OPENROUTER_API_KEY:
+            return jsonify({'response': "⚠️ Chave API do OpenRouter ausente no Render (Configure a Environment Variable: OPENROUTER_API_KEY)."})
+        
+        headers = {
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://athena-ia.onrender.com", 
+            "X-Title": "Athena-IA"
+        }
+        payload = {
+            "model": CLOUD_MODEL,
+            "messages": [{"role": "system", "content": system_prompt}] + chat_history,
+            "temperature": 0.7
+        }
         try:
-            # Constrói o prompt com o histórico para a nuvem
-            full_prompt = system_prompt + "\n\nHistórico:\n" + "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history])
-            response = cloud_model.generate_content(full_prompt)
-            ai_reply = response.text
+            response = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=60)
+            response.raise_for_status()
+            ai_reply = response.json()['choices'][0]['message']['content']
             chat_history.append({"role": "assistant", "content": ai_reply})
             return jsonify({'response': ai_reply})
         except Exception as e:
-            return jsonify({'response': f"❌ Erro na Nuvem: {str(e)}"})
+            return jsonify({'response': f"❌ Erro na Nuvem (OpenRouter): {str(e)}"})
 
     # ROTEAMENTO: HD LOCAL (LM STUDIO / QWEN)
     elif target_mode == 'local':

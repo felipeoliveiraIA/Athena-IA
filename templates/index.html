@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A.T.H.E.N.A. OS v5.2</title>
+    <title>ATHENA IA v5.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
@@ -16,30 +16,51 @@
         ::-webkit-scrollbar-thumb { background-color: #333; border-radius: 10px; }
         input[type="file"] { display: none; }
         
-        /* Widget da Câmera Flutuante */
+        /* Widget da Câmera Flutuante Ajustado */
         #camera-widget {
-            position: absolute; top: 80px; right: 20px; width: 240px;
+            position: absolute; top: 80px; right: 20px; width: 280px;
             background: #000; border: 2px solid #ff9800; border-radius: 12px;
             overflow: hidden; cursor: grab; z-index: 50; display: none;
             box-shadow: 0 10px 25px rgba(0,0,0,0.8);
         }
         #camera-widget:active { cursor: grabbing; }
-        video { width: 100%; height: auto; transform: scaleX(-1); /* Efeito espelho */ }
+        video { width: 100%; height: auto; transform: scaleX(-1); }
+        
+        /* Controles Internos da Câmera */
+        .camera-controls {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: rgba(0, 0, 0, 0.7); display: flex;
+            justify-content: space-between; align-items: center; padding: 8px;
+        }
+        
+        /* Balão Fantasma (Live) */
+        .ghost-bubble { opacity: 0.7; border: 1px dashed #ff9800; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
 
     <!-- Widget da Câmera -->
     <div id="camera-widget">
-        <div class="bg-gray-900 text-xs text-orange-500 p-1 text-center font-bold tracking-widest">LIVE FEED</div>
+        <div class="bg-gray-900 text-xs text-orange-500 p-1 flex justify-between items-center font-bold tracking-widest cursor-move">
+            <span>LIVE FEED</span>
+            <div id="mic-indicator" class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]"></div>
+        </div>
         <video id="user-video" autoplay muted></video>
+        <div class="camera-controls">
+            <button id="toggle-hold-btn" class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-white transition" title="Manter a IA escutando sem responder automaticamente">
+                ⏸️ Pausar Auto-Envio
+            </button>
+            <button id="manual-send-btn" class="text-xs px-3 py-1 bg-orange text-black font-bold rounded hidden transition shadow-[0_0_8px_#ff9800]">
+                Transmitir
+            </button>
+        </div>
     </div>
 
     <!-- Sidebar Lateral -->
     <aside class="sidebar w-64 flex flex-col p-4 relative z-10">
         <div class="flex items-center gap-2 mb-6">
-            <span class="text-2xl">⚡</span>
-            <h1 class="text-xl font-bold tracking-wider">A.T.H.E.N.A. <span class="text-xs bg-orange text-black px-1 rounded">v5.2</span></h1>
+            <span class="text-2xl">🦉</span>
+            <h1 class="text-xl font-bold tracking-wider">ATHENA IA <span class="text-xs bg-orange text-black px-1 rounded">v5.2</span></h1>
         </div>
         
         <button class="bg-orange text-black font-bold py-2 px-4 rounded mb-6 hover:bg-orange-600 transition shadow-lg">
@@ -55,7 +76,7 @@
 
         <div class="mb-4">
             <h3 class="text-xs text-gray-500 mb-2 uppercase tracking-wide">Integrações:</h3>
-            <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-orange-400 transition">
+            <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-orange-400 transition" title="Estrutura médica: Etiologia, Fisiopatologia, Critérios e Conduta">
                 <input type="checkbox" id="modo-semiologico" class="rounded bg-gray-800 border-gray-600 text-orange-500 focus:ring-orange-500">
                 🩺 Modo Semiológico
             </label>
@@ -78,6 +99,7 @@
             <select id="model-select" class="bg-[#1a1a1c] border border-gray-700 text-white rounded p-1 outline-none text-sm cursor-pointer">
                 <option value="qwen">🧠 Nuvem (Qwen Coder 32B)</option>
                 <option value="gemini">🧠 Nuvem (Gemini)</option>
+                <option value="local">🖥️ HD Local (LM Studio)</option>
             </select>
 
             <div class="flex items-center gap-3">
@@ -95,21 +117,11 @@
                     🎤 Live
                 </button>
                 <div id="live-indicator" class="w-3 h-3 rounded-full bg-red-900 transition-colors shadow-sm"></div>
-                <button id="pip-btn" class="bg-[#1a1a1c] hover:bg-gray-800 border border-gray-700 px-3 py-1 text-sm rounded transition cursor-pointer">PiP ⧉</button>
+                <button id="pip-btn" class="bg-[#1a1a1c] hover:bg-gray-800 border border-gray-700 px-3 py-1 text-sm rounded transition cursor-pointer" title="Destacar Câmera">PiP ⧉</button>
             </div>
         </header>
 
         <div id="chat-box" class="chat-container flex-1 overflow-y-auto p-6 space-y-6"></div>
-
-        <!-- Painel Live Flutuante (Transição de Fala) -->
-        <div id="live-control-panel" class="hidden absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-gray-900 border-2 border-orange-500 p-4 rounded-xl shadow-2xl w-3/4 flex flex-col gap-3">
-            <p class="text-xs text-orange-400 font-bold uppercase">Escutando... (Pode fazer pausas, a IA vai aguardar)</p>
-            <div id="live-transcript" class="text-white text-sm italic min-h-[40px] max-h-24 overflow-y-auto"></div>
-            <div class="flex justify-end gap-3">
-                <button id="live-clear-btn" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 text-sm">Limpar</button>
-                <button id="live-send-action-btn" class="px-4 py-1 bg-orange text-black font-bold rounded hover:bg-orange-600 shadow-[0_0_10px_#ff9800]">Transmitir para IA</button>
-            </div>
-        </div>
 
         <div class="p-4 bg-[#0d0d0f] relative z-20">
             <div class="flex items-end gap-2 bg-[#1a1a1c] border border-gray-700 rounded-xl p-2 relative focus-within:border-[#ff9800] transition-colors">
@@ -118,7 +130,7 @@
                 </label>
                 <textarea id="user-input" rows="1" class="w-full bg-transparent text-white outline-none resize-none max-h-32 py-2" placeholder="Mensagem (Shift+Enter para pular linha)..."></textarea>
                 <button id="send-btn" class="bg-orange text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-orange-600 transition shadow-md">
-                    Enviar 🦉
+                    Enviar
                 </button>
             </div>
             <div id="attachment-preview" class="hidden mt-2 text-xs text-orange-400 ml-10"></div>
@@ -130,20 +142,60 @@
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
         const liveBtn = document.getElementById('live-btn');
-        const liveControlPanel = document.getElementById('live-control-panel');
-        const liveTranscript = document.getElementById('live-transcript');
-        const liveSendActionBtn = document.getElementById('live-send-action-btn');
-        const liveClearBtn = document.getElementById('live-clear-btn');
         const cameraWidget = document.getElementById('camera-widget');
         const userVideo = document.getElementById('user-video');
-        const speedSelect = document.getElementById('speed-select');
+        const pipBtn = document.getElementById('pip-btn');
+        
+        // Controles de Live
+        const toggleHoldBtn = document.getElementById('toggle-hold-btn');
+        const manualSendBtn = document.getElementById('manual-send-btn');
+        const micIndicator = document.getElementById('mic-indicator');
         
         let mediaStream = null;
         let recognition = null;
         let isLiveActive = false;
+        let isHoldMode = false;
+        let autoSendTimer = null;
         let currentLiveTranscript = "";
-        let lastAiMessageText = ""; 
+        let liveGhostBubble = null;
+        
         let attachedFileBase64 = null;
+        let currentSpeakingBtn = null; // Rastrear botão de áudio ativo
+
+        // PiP (Picture in Picture)
+        pipBtn.addEventListener('click', async () => {
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else if (userVideo.srcObject) {
+                await userVideo.requestPictureInPicture();
+            } else {
+                alert("Ative o modo Live primeiro para destacar a câmera.");
+            }
+        });
+
+        // Alternar Modo Pause/Hold no Live
+        toggleHoldBtn.addEventListener('click', () => {
+            isHoldMode = !isHoldMode;
+            if (isHoldMode) {
+                toggleHoldBtn.innerText = "▶️ Retomar Auto-Envio";
+                toggleHoldBtn.classList.replace('bg-gray-700', 'bg-orange-600');
+                manualSendBtn.classList.remove('hidden');
+                clearTimeout(autoSendTimer); // Cancela qualquer envio automático pendente
+            } else {
+                toggleHoldBtn.innerText = "⏸️ Pausar Auto-Envio";
+                toggleHoldBtn.classList.replace('bg-orange-600', 'bg-gray-700');
+                manualSendBtn.classList.add('hidden');
+            }
+        });
+
+        // Botão Transmitir (Manual)
+        manualSendBtn.addEventListener('click', () => {
+            if(currentLiveTranscript.trim() !== "") {
+                const text = currentLiveTranscript;
+                resetLiveState();
+                processSend(true, text);
+            }
+        });
 
         // Anexos
         document.getElementById('file-upload').addEventListener('change', function(e) {
@@ -156,28 +208,12 @@
             reader.readAsDataURL(file);
         });
 
-        // Envio Padrão
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); processSend(false); }
         });
         userInput.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px'; });
         sendBtn.addEventListener('click', () => processSend(false));
 
-        // Envio pelo Live Mode
-        liveSendActionBtn.addEventListener('click', () => {
-            if(currentLiveTranscript.trim() !== "") {
-                const text = currentLiveTranscript;
-                liveClearBtn.click(); // limpa o painel
-                processSend(true, text); // true = forceVoiceResponse
-            }
-        });
-        
-        liveClearBtn.addEventListener('click', () => {
-            currentLiveTranscript = "";
-            liveTranscript.innerText = "";
-        });
-
-        // Função de envio de mensagens e comunicação com o Render
         async function processSend(isLiveMode = false, overrideText = null) {
             const text = overrideText || userInput.value.trim();
             if (!text && !attachedFileBase64) return;
@@ -196,7 +232,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         message: text,
-                        modoSemiologico: document.getElementById('modo-semiologico').checked
+                        modoSemiologico: document.getElementById('modo-semiologico').checked,
+                        model: document.getElementById('model-select').value
                     })
                 });
                 
@@ -204,36 +241,65 @@
                 const data = await response.json();
                 
                 if(data.error) {
-                    appendMessage('⚠️ Erro na Nuvem', data.error, 'error');
+                    appendMessage('⚠️ Erro de Conexão', data.error, 'error');
                 } else {
-                    lastAiMessageText = data.reply;
-                    appendMessage('🦉 A.T.H.E.N.A.', data.reply, 'ai');
-                    
-                    // Se a requisição veio do modo Live, responde em voz automaticamente
+                    const msgDiv = appendMessage('🦉 ATHENA IA', data.reply, 'ai');
                     if (isLiveMode) {
-                        speakText(data.reply);
+                        // Clica automaticamente no botão de ouvir para responder em voz
+                        const audioBtn = msgDiv.querySelector('.audio-toggle-btn');
+                        if(audioBtn) toggleAudio(data.reply, audioBtn);
                     }
                 }
             } catch (error) {
                 removeLoading(loadingId);
-                appendMessage('⚠️ Erro de Rede', 'O servidor no Render demorou a responder ou está hibernando. Envie novamente.', 'error');
+                appendMessage('⚠️ Erro de Rede', 'O servidor demorou a responder. Tente novamente.', 'error');
             }
         }
 
-        // Lógica de Voz e Mudança de Velocidade Instantânea
-        speedSelect.addEventListener('change', () => {
-            if(window.speechSynthesis.speaking) {
+        // Lógica de Voz (Toggle Play/Stop)
+        document.getElementById('speed-select').addEventListener('change', () => {
+            if(window.speechSynthesis.speaking && currentSpeakingBtn) {
+                const text = currentSpeakingBtn.getAttribute('data-text');
                 window.speechSynthesis.cancel(); 
-                setTimeout(() => { speakText(lastAiMessageText); }, 200); // Reinicia com nova velocidade
+                setTimeout(() => { 
+                    currentSpeakingBtn.innerHTML = "⏹️ Parar";
+                    executeSpeech(text); 
+                }, 250); 
             }
         });
 
-        function speakText(text) {
-            window.speechSynthesis.cancel(); 
-            lastAiMessageText = text; // Salva para replay
+        function toggleAudio(text, btnElement) {
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+                // Se clicou no mesmo botão, apenas para e reseta
+                if (currentSpeakingBtn === btnElement) {
+                    resetAllAudioButtons();
+                    if(isLiveActive && recognition) {
+                        setTimeout(() => recognition.start(), 500); // Retoma o mic
+                    }
+                    return;
+                }
+            }
+            
+            resetAllAudioButtons();
+            currentSpeakingBtn = btnElement;
+            btnElement.innerHTML = "⏹️ Parar";
+            btnElement.classList.replace('bg-gray-800', 'bg-orange-600');
+            btnElement.classList.replace('text-gray-300', 'text-white');
+            
+            // Pausa o reconhecimento do Live para não escutar a própria voz
+            if(isLiveActive && recognition) {
+                try { recognition.abort(); } catch(e){}
+                micIndicator.classList.replace('bg-green-500', 'bg-gray-600');
+            }
+
+            executeSpeech(text);
+        }
+
+        function executeSpeech(text) {
             const cleanText = text.replace(/[*#_`]/g, ''); 
             const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.rate = parseFloat(speedSelect.value);
+            utterance.rate = parseFloat(document.getElementById('speed-select').value);
             
             const isSpanish = /\b(el|la|los|las|y|en|un|una|del)\b/i.test(cleanText.substring(0, 50));
             utterance.lang = isSpanish ? 'es-ES' : 'pt-BR';
@@ -243,17 +309,37 @@
                 (v.name.includes('Francisca') || v.name.includes('Luciana') || v.name.includes('Helena') || v.name.includes('Female')));
             if(selectedVoice) utterance.voice = selectedVoice;
 
+            utterance.onend = () => {
+                resetAllAudioButtons();
+                // Retoma o microfone quando terminar de falar
+                if(isLiveActive && recognition) {
+                    micIndicator.classList.replace('bg-gray-600', 'bg-green-500');
+                    try { recognition.start(); } catch(e){}
+                }
+            };
+
             window.speechSynthesis.speak(utterance);
         }
 
-        // Modo Live (Webcam e Microfone)
+        function resetAllAudioButtons() {
+            document.querySelectorAll('.audio-toggle-btn').forEach(btn => {
+                btn.innerHTML = "🔊 Ouvir";
+                btn.classList.replace('bg-orange-600', 'bg-gray-800');
+                btn.classList.replace('text-white', 'text-gray-300');
+            });
+            currentSpeakingBtn = null;
+        }
+
+        // Modo Live (Mic/Cam e Ghost Bubble)
         liveBtn.addEventListener('click', async () => {
             if (!isLiveActive) {
+                const permission = confirm("ATHENA IA solicita acesso à sua Câmera e Microfone para o Modo Live. Confirmar?");
+                if(!permission) return;
+
                 try {
                     mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                     userVideo.srcObject = mediaStream;
                     cameraWidget.style.display = 'block';
-                    liveControlPanel.classList.remove('hidden');
                     
                     document.getElementById('live-indicator').classList.replace('bg-red-900', 'bg-green-500');
                     liveBtn.classList.add('border-green-500', 'text-green-400');
@@ -267,42 +353,76 @@
                         recognition.interimResults = true;
                         
                         recognition.onresult = (event) => {
+                            clearTimeout(autoSendTimer);
+                            
                             let interim = '';
                             let final = '';
                             for (let i = event.resultIndex; i < event.results.length; ++i) {
                                 if (event.results[i].isFinal) final += event.results[i][0].transcript;
                                 else interim += event.results[i][0].transcript;
                             }
-                            currentLiveTranscript += final + " ";
-                            liveTranscript.innerText = currentLiveTranscript + interim;
+                            
+                            currentLiveTranscript += final;
+                            const displayTxt = currentLiveTranscript + interim;
+                            
+                            if(displayTxt.trim().length > 0) {
+                                if(!liveGhostBubble) createGhostBubble();
+                                liveGhostBubble.innerHTML = `<strong>Escutando:</strong><br>${displayTxt}`;
+                                scrollToBottom();
+                            }
+                            
+                            // Lógica de Envio Automático por Pausa (3.5s de silêncio)
+                            if(!isHoldMode && currentLiveTranscript.trim() !== "") {
+                                autoSendTimer = setTimeout(() => {
+                                    const text = currentLiveTranscript;
+                                    resetLiveState();
+                                    processSend(true, text);
+                                }, 3500);
+                            }
+                        };
+                        
+                        recognition.onend = () => { 
+                            // Reinicia se não estivermos falando (TTS ativo)
+                            if(isLiveActive && !window.speechSynthesis.speaking) recognition.start(); 
                         };
                         recognition.start();
-                        // Reinicia se parar acidentalmente
-                        recognition.onend = () => { if(isLiveActive) recognition.start(); };
                     }
-                } catch (err) { alert("Permissão de câmera/microfone negada."); }
+                } catch (err) { alert("Permissão negada ou hardware não encontrado."); }
             } else {
                 mediaStream.getTracks().forEach(track => track.stop());
                 cameraWidget.style.display = 'none';
-                liveControlPanel.classList.add('hidden');
                 document.getElementById('live-indicator').classList.replace('bg-green-500', 'bg-red-900');
                 liveBtn.classList.remove('border-green-500', 'text-green-400');
                 isLiveActive = false;
-                if(recognition) { recognition.onend = null; recognition.stop(); }
+                if(recognition) { recognition.onend = null; recognition.abort(); }
+                resetLiveState();
             }
         });
 
-        // Arrastar Webcam (Draggable Logic)
+        function createGhostBubble() {
+            liveGhostBubble = document.createElement('div');
+            liveGhostBubble.className = 'ml-auto bg-orange text-black p-3 rounded-lg max-w-[75%] ghost-bubble italic transition-all';
+            chatBox.appendChild(liveGhostBubble);
+        }
+
+        function resetLiveState() {
+            clearTimeout(autoSendTimer);
+            currentLiveTranscript = "";
+            if(liveGhostBubble) { liveGhostBubble.remove(); liveGhostBubble = null; }
+        }
+
+        // Arrastar Webcam
         let isDragging = false, dragStartX, dragStartY;
         cameraWidget.addEventListener('mousedown', (e) => {
-            isDragging = true; dragStartX = e.clientX - cameraWidget.offsetLeft; dragStartY = e.clientY - cameraWidget.offsetTop;
+            if(e.target.tagName !== 'BUTTON') { // Não arrastar se clicar no botão
+                isDragging = true; dragStartX = e.clientX - cameraWidget.offsetLeft; dragStartY = e.clientY - cameraWidget.offsetTop;
+            }
         });
         window.addEventListener('mousemove', (e) => {
             if(isDragging) { cameraWidget.style.left = (e.clientX - dragStartX) + 'px'; cameraWidget.style.top = (e.clientY - dragStartY) + 'px'; }
         });
         window.addEventListener('mouseup', () => isDragging = false);
 
-        // Renderização de Mensagens (inclui Botões de Ouvir e Obsidian)
         function appendMessage(sender, text, type) {
             const msgDiv = document.createElement('div');
             
@@ -315,27 +435,30 @@
             } else {
                 msgDiv.className = 'mr-auto bg-[#1a1a1c] border border-gray-800 text-gray-200 p-5 rounded-lg max-w-[85%] shadow-lg leading-relaxed';
                 
-                // Botão de Forçar Áudio no chat normal
                 const safeTextForAudio = text.replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, " ");
-                
+                const safeTextForCopy = text.replace(/"/g, '&quot;').replace(/'/g, "\\'");
+
                 const htmlContent = marked.parse(text);
                 msgDiv.innerHTML = `
                     <div class="flex justify-between items-center mb-3 border-b border-gray-800 pb-2">
                         <strong class="text-orange-400 tracking-wide text-sm">${sender}</strong>
-                        <button onclick="speakText('${safeTextForAudio}')" class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded shadow">
+                        <button data-text="${safeTextForAudio}" onclick="toggleAudio(this.getAttribute('data-text'), this)" class="audio-toggle-btn text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1 rounded shadow transition">
                             🔊 Ouvir
                         </button>
                     </div>
-                    <div class="prose prose-invert max-w-none">${htmlContent}</div>`;
-                
-                const obsidianBtn = document.createElement('button');
-                obsidianBtn.className = "mt-4 text-xs bg-gray-800 border border-gray-700 hover:bg-gray-700 px-3 py-1.5 rounded text-gray-300 flex gap-2 items-center";
-                obsidianBtn.innerHTML = "🗃️ Salvar no Obsidian";
-                obsidianBtn.onclick = () => saveToObsidian(text);
-                msgDiv.appendChild(obsidianBtn);
+                    <div class="prose prose-invert max-w-none">${htmlContent}</div>
+                    <div class="flex gap-2 mt-4 pt-3 border-t border-gray-800">
+                        <button onclick="saveToObsidian(this.getAttribute('data-raw'))" data-raw="${safeTextForCopy}" class="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded text-gray-300 flex gap-2 items-center transition">
+                            🗃️ Salvar Obsidian
+                        </button>
+                        <button onclick="navigator.clipboard.writeText(this.getAttribute('data-raw')); this.innerText='✔️ Copiado!';" data-raw="${safeTextForCopy}" class="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded text-gray-300 flex gap-2 items-center transition">
+                            📋 Copiar
+                        </button>
+                    </div>`;
             }
             chatBox.appendChild(msgDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            scrollToBottom();
+            return msgDiv;
         }
 
         function appendLoading() {
@@ -343,12 +466,19 @@
             const div = document.createElement('div');
             div.id = id;
             div.className = 'mr-auto text-gray-500 italic text-sm';
-            div.innerText = 'Processando na nuvem (Isso pode levar alguns segundos se o servidor estiver acordando)...';
+            div.innerText = 'Processando...';
             chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            scrollToBottom();
             return id;
         }
         function removeLoading(id) { document.getElementById(id)?.remove(); }
+
+        function scrollToBottom() {
+            // Só rola automaticamente se estiver perto do fundo, preservando a leitura do usuário
+            const threshold = 150;
+            const isNearBottom = chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < threshold;
+            if (isNearBottom) { chatBox.scrollTop = chatBox.scrollHeight; }
+        }
 
         function saveToObsidian(text) {
             const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });

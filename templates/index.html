@@ -3,163 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A.T.H.E.N.A. OS - v5.3 Prime</title>
-    <!-- Tailwind CSS -->
+    <title>ATHENA IA - v5.2 OS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        darkBg: '#0d0d0f',
-                        panelBg: '#161618',
-                        userBubble: '#C87A1E', /* Âmbar sofisticado do seu print */
-                        aiBubble: '#1E1E22',
-                        accentGold: '#F4D03F', /* Ouro claro para botões e textos */
-                    }
-                }
-            }
-        }
+        tailwind.config = { darkMode: 'class', theme: { extend: { colors: {
+            darkBg: '#0d0d0f', panelBg: '#161618', userBubble: '#2A3942', /* WhatsApp dark tone */ aiBubble: '#1E1E22', accentGold: '#F4D03F'
+        }}}}
     </script>
-    <!-- FontAwesome & Marked (Markdown) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #0d0d0f; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-        /* Markdown Styles */
         .markdown-body h2 { font-size: 1.5em; font-weight: bold; margin-bottom: 0.5em; color: #F4D03F; }
         .markdown-body h3 { font-size: 1.2em; font-weight: bold; margin-bottom: 0.5em; color: #e5e7eb; }
         .markdown-body p { margin-bottom: 1em; }
-        .markdown-body pre { background: #0d0d0f; padding: 10px; border-radius: 8px; overflow-x: auto; margin-bottom: 1em; }
+        .markdown-body pre { background: #0d0d0f; padding: 10px; border-radius: 8px; overflow-x: auto; margin-bottom: 1em; border: 1px solid #333;}
         .markdown-body code { font-family: monospace; color: #F4D03F; }
         .markdown-body ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1em; }
-        /* Dropdown transition */
-        .dropdown-menu { display: none; }
-        .dropdown-menu.active { display: block; }
+        .dropdown-menu { display: none; } .dropdown-menu.active { display: block; }
+        .ghost-bubble { border: 1px dashed #6b7280; background: rgba(30,30,34,0.5); }
     </style>
 </head>
 <body class="bg-darkBg text-gray-200 h-screen flex font-sans overflow-hidden">
 
     <!-- BARRA LATERAL -->
-    <aside class="w-80 bg-panelBg flex flex-col border-r border-gray-800">
-        <!-- Logo e Head -->
+    <aside class="w-80 bg-panelBg flex flex-col border-r border-gray-800 shrink-0">
         <div class="p-6 border-b border-gray-800">
-            <h1 class="text-xl font-bold text-accentGold flex items-center gap-2">
-                🦉 A.T.H.E.N.A. OS
-            </h1>
-            <span class="text-xs bg-amber-900 text-amber-200 px-2 py-1 rounded-full mt-2 inline-block">v5.3 Prime</span>
+            <h1 class="text-xl font-bold text-accentGold flex items-center gap-2">🦉 ATHENA IA</h1>
+            <span class="text-xs bg-amber-900 text-amber-200 px-2 py-1 rounded-full mt-2 inline-block">v5.2 OS</span>
         </div>
 
-        <!-- Ações Principais -->
         <div class="p-4 flex flex-col gap-3 border-b border-gray-800">
-            <button class="bg-gray-800 hover:bg-gray-700 text-sm py-2 rounded-lg text-left px-4 text-pink-400 flex gap-2 items-center">
-                <i class="fas fa-brain"></i> Memória & Perfil (Aprender)
+            <button onclick="openProfilePanel()" class="bg-gray-800 hover:bg-gray-700 text-sm py-2 rounded-lg text-left px-4 text-pink-400 flex justify-between items-center transition-colors">
+                <span><i class="fas fa-brain"></i> Memória & Perfil</span>
+                <i class="fas fa-bolt text-yellow-500" title="⚡ IA Aprender & Adicionar"></i>
             </button>
-            <button onclick="createNewChat()" class="bg-accentGold hover:bg-yellow-400 text-gray-900 font-semibold py-3 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2">
+            <button onclick="createNewChat()" class="bg-accentGold hover:bg-yellow-400 text-gray-900 font-semibold py-3 rounded-xl shadow-lg transition-transform hover:scale-105 flex justify-center items-center gap-2">
                 <i class="fas fa-plus"></i> Nova Conversa
             </button>
         </div>
 
-        <!-- Lista de Conversas (IndexedDB) -->
-        <div class="flex-1 overflow-y-auto p-3" id="chatList">
-            <h3 class="text-xs text-gray-500 font-semibold mb-3 uppercase tracking-wider pl-2">Conversas Salvas</h3>
-            <!-- Itens de chat injetados via JS -->
-        </div>
+        <div class="flex-1 overflow-y-auto p-3" id="chatList"></div>
 
-        <!-- Configuração de Retenção e Backup -->
         <div class="p-4 border-t border-gray-800 text-sm">
-            <label class="text-xs text-gray-500 mb-1 block uppercase">Retenção Padrão</label>
-            <select id="retentionSelect" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-gray-300 outline-none focus:border-accentGold">
-                <option value="1">1 Mês</option>
-                <option value="6">6 Meses</option>
-                <option value="999">📌 Fixar Permanentemente</option>
-            </select>
-            <button onclick="exportBunker()" class="mt-4 w-full bg-gray-800 hover:bg-gray-700 py-2 rounded-lg text-xs flex justify-center items-center gap-2 transition-colors">
+            <button onclick="exportBunker()" class="w-full bg-gray-800 hover:bg-gray-700 py-2.5 rounded-lg text-xs flex justify-center items-center gap-2 transition-colors border border-gray-700">
                 <i class="fas fa-download"></i> Backup Bunker (.json)
             </button>
         </div>
     </aside>
 
-    <!-- ÁREA PRINCIPAL DO CHAT -->
+    <!-- ÁREA PRINCIPAL -->
     <main class="flex-1 flex flex-col relative h-full">
-        <!-- Header Principal -->
+        <!-- HEADER -->
         <header class="h-16 border-b border-gray-800 bg-panelBg flex items-center justify-between px-6 shrink-0">
             <div class="flex items-center gap-4">
                 <h2 id="currentChatTitle" class="text-lg font-semibold text-gray-100">Nova Conversa</h2>
+                <select id="chatRetention" onchange="updateChatRetention()" class="bg-gray-900 border border-gray-700 text-xs rounded px-2 py-1 text-gray-400 outline-none">
+                    <option value="1M">1 Mês</option>
+                    <option value="2M">2 Meses</option>
+                    <option value="3M">3 Meses</option>
+                    <option value="6M">6 Meses</option>
+                    <option value="1Y">1 Ano</option>
+                    <option value="2Y">2 Anos</option>
+                    <option value="5Y">5 Anos</option>
+                    <option value="PIN">📌 Fixado</option>
+                </select>
             </div>
             
             <div class="flex items-center gap-3">
                 <select id="modelSelect" class="bg-gray-900 border border-gray-700 text-sm rounded-lg px-3 py-1.5 outline-none focus:border-accentGold text-gray-300">
-                    <option value="gemini">⚡ Nuvem (Gemini 2.0 Flash)</option>
-                    <option value="llama">🦙 Nuvem (Llama 3.3 70B)</option>
+                    <option value="gemini">⚡ Nuvem (Gemini)</option>
+                    <option value="qwen">🧠 Nuvem (Qwen Coder)</option>
                     <option value="local">🖥️ HD Local (LM Studio)</option>
                 </select>
                 
                 <select id="speedSelect" class="bg-gray-900 border border-gray-700 text-sm rounded-lg px-3 py-1.5 outline-none text-gray-300">
                     <option value="0.75">0.75x</option>
                     <option value="1.0" selected>1.0x</option>
+                    <option value="1.25">1.25x</option>
                     <option value="1.5">1.50x</option>
                     <option value="2.0">2.0x</option>
+                    <option value="3.0">3.0x</option>
+                    <option value="4.0">4.0x</option>
                 </select>
 
-                <!-- Botão Live com Indicador Verde/Vermelho -->
-                <button id="liveToggleBtn" onclick="toggleLiveMode()" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-sm rounded-lg px-4 py-1.5 flex items-center gap-2 transition-colors">
-                    <span id="liveIndicator" class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
-                    Modo Live
+                <button onclick="requestPiPWindow()" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-sm rounded-lg px-3 py-1.5 flex items-center gap-2" title="Desacoplar Live">
+                    <i class="fas fa-external-link-alt text-blue-400"></i> PiP Live
                 </button>
             </div>
         </header>
 
-        <!-- Container de Mensagens -->
+        <!-- MENSAGENS -->
         <div id="chatContainer" class="flex-1 overflow-y-auto p-6 space-y-6 pb-32 scroll-smooth">
-            <!-- Mensagens injetadas via JS -->
             <div class="text-center text-gray-500 text-sm mt-10">
                 <i class="fas fa-owl text-4xl mb-3 text-gray-700"></i>
-                <p>A.T.H.E.N.A. OS Iniciada. Como posso otimizar sua produtividade hoje?</p>
+                <p>Sistema ATHENA Iniciado. Como posso ajudar na sua arquitetura hoje?</p>
             </div>
         </div>
 
-        <!-- Indicador de Digitação (Escondido por padrão) -->
-        <div id="typingIndicator" class="hidden absolute bottom-28 left-8 bg-panelBg border border-gray-800 px-4 py-2 rounded-full flex gap-2 items-center shadow-lg">
-            <span class="w-2 h-2 bg-accentGold rounded-full animate-bounce"></span>
-            <span class="w-2 h-2 bg-accentGold rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
-            <span class="w-2 h-2 bg-accentGold rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
-            <span class="text-xs text-gray-400 ml-2">A.T.H.E.N.A. analisando...</span>
+        <div id="ghostBubble" class="hidden absolute bottom-28 left-8 ghost-bubble px-4 py-3 rounded-2xl max-w-md shadow-lg text-gray-300 text-sm">
+            <i class="fas fa-microphone text-pink-400 mr-2 animate-pulse"></i> <span id="liveTranscriptionText">Ouvindo...</span>
         </div>
 
-        <!-- Input Area (Estilo WhatsApp Modernizado) -->
-        <div class="absolute bottom-0 w-full bg-gradient-to-t from-darkBg via-darkBg to-transparent p-6 pt-10">
-            <div class="max-w-4xl mx-auto flex items-end gap-3 bg-panelBg border border-gray-700 rounded-2xl p-2 shadow-2xl focus-within:border-accentGold transition-colors">
-                
-                <button class="text-gray-400 hover:text-accentGold px-3 py-2 transition-colors">
-                    <i class="fas fa-paperclip text-lg"></i>
-                </button>
-
-                <textarea id="userInput" rows="1" class="w-full bg-transparent text-gray-200 outline-none resize-none py-3 max-h-40" placeholder="Digite seu prompt ou cole conteúdo (Shift+Enter p/ pular linha)..." oninput="autoResize(this)" onkeydown="handleEnter(event)"></textarea>
-
-                <button class="text-gray-400 hover:text-pink-400 px-3 py-2 transition-colors">
-                    <i class="fas fa-microphone text-lg"></i>
-                </button>
-
-                <button onclick="sendMessage()" class="bg-accentGold text-gray-900 rounded-xl w-12 h-12 flex justify-center items-center hover:bg-yellow-400 transition-transform hover:scale-105 shadow-lg shrink-0">
-                    <i class="fas fa-paper-plane text-lg"></i>
-                </button>
-            </div>
+        <!-- INPUT WHATSAPP STYLE -->
+        <div class="absolute bottom-0 w-full bg-panelBg border-t border-gray-800 p-4 px-6 flex items-end gap-3 z-10">
+            <button class="text-gray-400 hover:text-accentGold p-2 transition-colors shrink-0">
+                <i class="fas fa-paperclip text-xl"></i>
+            </button>
+            <textarea id="userInput" rows="1" class="w-full bg-darkBg border border-gray-700 text-gray-200 rounded-xl px-4 py-3 outline-none resize-none max-h-32 focus:border-accentGold transition-colors" placeholder="Mensagem para ATHENA IA (Shift+Enter para quebrar linha)..." oninput="autoResize(this)" onkeydown="handleEnter(event)"></textarea>
+            <button onclick="toggleLiveMic()" id="micBtn" class="text-gray-400 hover:text-pink-400 p-2 transition-colors shrink-0 relative">
+                <i class="fas fa-microphone text-xl"></i>
+                <span id="micPulse" class="hidden absolute top-0 right-0 w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
+            </button>
+            <button onclick="sendMessage()" class="bg-accentGold text-gray-900 rounded-full w-12 h-12 flex justify-center items-center hover:bg-yellow-400 transition-transform hover:scale-105 shadow-lg shrink-0">
+                <i class="fas fa-paper-plane"></i>
+            </button>
         </div>
     </main>
 
-    <!-- LOGICA JAVASCRIPT: IndexedDB, Chat, TTS, UI -->
+    <!-- WIDGET FLUTUANTE (Câmera Local) -->
+    <video id="localVideo" class="hidden absolute top-20 right-6 w-48 h-64 bg-black rounded-xl border border-gray-700 shadow-2xl object-cover cursor-move z-50" autoplay muted playsinline></video>
+
+    <!-- LOGICA DO SISTEMA -->
     <script>
-        // --- 1. CONFIGURAÇÃO DE INDEXEDDB ---
         let db;
         let currentChatId = null;
-        let isLiveMode = false;
-
-        const requestDB = indexedDB.open("AthenaOS_DB", 1);
+        let lastAiMessageText = "";
+        let isSpeaking = false;
+        let currentUtterance = null;
+        
+        // 1. INDEXEDDB
+        const requestDB = indexedDB.open("AthenaOS_DB", 2);
         requestDB.onupgradeneeded = (e) => {
             db = e.target.result;
             if (!db.objectStoreNames.contains("chats")) {
@@ -167,336 +143,208 @@
                 store.createIndex("updatedAt", "updatedAt", { unique: false });
             }
         };
-        requestDB.onsuccess = (e) => {
-            db = e.target.result;
-            loadChatList();
-        };
+        requestDB.onsuccess = (e) => { db = e.target.result; loadChatList(); };
 
-        // --- 2. GERENCIAMENTO DE CHAT & UI ---
         function createNewChat() {
             currentChatId = 'chat_' + Date.now();
-            const newChat = {
-                id: currentChatId,
-                title: "Nova Conversa",
-                messages: [],
-                updatedAt: Date.now(),
-                pinned: false
-            };
-            saveChatToDB(newChat);
-            document.getElementById('currentChatTitle').innerText = newChat.title;
-            document.getElementById('chatContainer').innerHTML = '';
-            loadChatList();
+            const newChat = { id: currentChatId, title: "Nova Conversa", messages: [], htmlContent: "", updatedAt: Date.now(), retention: "1M", pinned: false };
+            saveChat(newChat, () => {
+                document.getElementById('currentChatTitle').innerText = newChat.title;
+                document.getElementById('chatRetention').value = "1M";
+                document.getElementById('chatContainer').innerHTML = '';
+                loadChatList();
+            });
         }
 
-        function saveChatToDB(chatObj) {
+        function saveChat(chatObj, callback) {
             const tx = db.transaction("chats", "readwrite");
             tx.objectStore("chats").put(chatObj);
-            tx.oncomplete = () => loadChatList();
+            tx.oncomplete = () => { if(callback) callback(); }
         }
 
         function loadChatList() {
             const tx = db.transaction("chats", "readonly");
-            const store = tx.objectStore("chats");
-            const req = store.index("updatedAt").openCursor(null, "prev");
+            const req = tx.objectStore("chats").index("updatedAt").openCursor(null, "prev");
             const listDiv = document.getElementById('chatList');
             listDiv.innerHTML = '';
-
             req.onsuccess = (e) => {
                 const cursor = e.target.result;
                 if (cursor) {
                     const chat = cursor.value;
                     const isActive = chat.id === currentChatId ? 'bg-gray-800 border-accentGold' : 'border-transparent hover:bg-gray-800/50';
-                    const pinIcon = chat.pinned ? '<i class="fas fa-thumbtack text-pink-500 text-xs"></i>' : '';
-
                     listDiv.innerHTML += `
                         <div class="relative group p-3 mb-2 rounded-xl border ${isActive} cursor-pointer transition-all flex justify-between items-center" onclick="openChat('${chat.id}')">
                             <div class="truncate text-sm flex gap-2 items-center w-4/5 text-gray-300">
-                                <i class="fas fa-comment-alt text-gray-600 text-xs"></i>
+                                <i class="fas fa-comment-alt text-gray-600 text-xs"></i> 
                                 <span class="truncate">${chat.title}</span>
-                                ${pinIcon}
+                                ${chat.pinned ? '<i class="fas fa-thumbtack text-pink-500 text-xs"></i>' : ''}
                             </div>
-                            
-                            <!-- Menu 3 Pontinhos (Estilo Gemini) -->
-                            <button onclick="toggleMenu(event, '${chat.id}')" class="text-gray-500 hover:text-accentGold p-1 rounded">
-                                <i class="fas fa-ellipsis-v"></i>
-                            </button>
-
-                            <!-- Dropdown Menu -->
+                            <button onclick="toggleMenu(event, '${chat.id}')" class="text-gray-500 hover:text-accentGold p-1"><i class="fas fa-ellipsis-v"></i></button>
                             <div id="menu_${chat.id}" class="dropdown-menu absolute right-0 top-10 w-48 bg-[#1E1E22] border border-gray-700 rounded-xl shadow-2xl z-50 text-sm overflow-hidden">
-                                <button onclick="actionShare(event, '${chat.id}')" class="w-full text-left px-4 py-3 hover:bg-gray-700 text-gray-300 flex items-center gap-3"><i class="fas fa-share-alt"></i> Compartilhar</button>
-                                <button onclick="actionPin(event, '${chat.id}')" class="w-full text-left px-4 py-3 hover:bg-gray-700 text-gray-300 flex items-center gap-3"><i class="fas fa-thumbtack"></i> Fixar / Desfixar</button>
-                                <button onclick="actionRename(event, '${chat.id}')" class="w-full text-left px-4 py-3 hover:bg-gray-700 text-gray-300 flex items-center gap-3"><i class="fas fa-pen"></i> Renomear</button>
-                                <button onclick="actionDelete(event, '${chat.id}')" class="w-full text-left px-4 py-3 hover:bg-red-900/40 text-red-400 flex items-center gap-3 border-t border-gray-700"><i class="fas fa-trash"></i> Excluir</button>
+                                <button onclick="actionPin(event, '${chat.id}')" class="w-full text-left px-4 py-3 hover:bg-gray-700 text-gray-300"><i class="fas fa-thumbtack w-5"></i> Fixar</button>
+                                <button onclick="actionRename(event, '${chat.id}')" class="w-full text-left px-4 py-3 hover:bg-gray-700 text-gray-300"><i class="fas fa-pen w-5"></i> Renomear</button>
+                                <button onclick="actionDelete(event, '${chat.id}')" class="w-full text-left px-4 py-3 hover:bg-red-900/40 text-red-400 border-t border-gray-700"><i class="fas fa-trash w-5"></i> Excluir</button>
                             </div>
-                        </div>
-                    `;
+                        </div>`;
                     cursor.continue();
                 }
             };
         }
 
-        // --- 3. LÓGICA DE MENSAGENS E BACKEND ---
+        // 2. MENSAGENS E BACKEND
         async function sendMessage(manualText = null) {
             if (!currentChatId) createNewChat();
-            
             const inputEl = document.getElementById('userInput');
             const text = manualText || inputEl.value.trim();
             if (!text) return;
 
-            inputEl.value = '';
-            inputEl.style.height = 'auto'; // Reseta altura
-
-            // Renderiza mensagem do usuário
-            appendMessage('user', text);
-            document.getElementById('typingIndicator').classList.remove('hidden');
-            scrollToBottom();
-
-            // Auto-Nomenclatura (Se for a 1º mensagem)
-            checkAndRenameChat(text);
-
+            if(!manualText) {
+                inputEl.value = ''; inputEl.style.height = 'auto';
+                appendMessage('user', text);
+            }
+            
             const model = document.getElementById('modelSelect').value;
-
             try {
-                // Rota para o Backend Flask (Ajuste a URL se estiver em deploy no Render)
-                const response = await fetch('http://127.0.0.1:5000/chat', { 
+                // Ajuste dinâmico de URL - Use URL relativa para o Render
+                const response = await fetch('/chat', { 
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ message: text, model: model })
                 });
 
-                document.getElementById('typingIndicator').classList.add('hidden');
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    appendMessage('error', errorData.error || `Erro de Servidor: ${response.status}`);
-                    return;
-                }
-
+                if (!response.ok) throw new Error(await response.text());
                 const data = await response.json();
                 appendMessage('ai', data.reply);
-
-                // Dispara Voz se Modo Live estiver ativo
-                if(isLiveMode) { playTTS(data.reply); }
-
+                lastAiMessageText = data.reply;
+                
             } catch (error) {
-                document.getElementById('typingIndicator').classList.add('hidden');
-                appendMessage('error', `Falha de rede: Verifique se o servidor Flask está rodando. Detalhes: ${error.message}`);
+                appendMessage('error', `Erro de processamento: ${error.message}`);
             }
         }
 
         function appendMessage(role, content) {
             const container = document.getElementById('chatContainer');
             const msgDiv = document.createElement('div');
+            const safeContent = content.replace(/'/g, "\\'").replace(/"/g, '&quot;');
             
             if (role === 'user') {
                 msgDiv.className = 'flex justify-end';
                 msgDiv.innerHTML = `
                     <div class="bg-userBubble text-gray-100 p-4 rounded-2xl rounded-tr-sm max-w-[85%] shadow-md">
-                        <div class="text-sm font-semibold mb-1 flex justify-between items-center text-amber-100">
-                            Você
-                            <button onclick="sendMessage('${content.replace(/'/g, "\\'")}')" class="text-xs hover:text-white transition-colors" title="Tentar Novamente"><i class="fas fa-sync-alt"></i></button>
-                        </div>
+                        <div class="text-xs font-semibold mb-1 flex justify-between items-center text-gray-400">Você <button onclick="sendMessage('${safeContent}')" class="hover:text-accentGold ml-4" title="Reenviar / Tentar Novamente"><i class="fas fa-sync-alt"></i></button></div>
                         <div class="whitespace-pre-wrap">${content}</div>
                     </div>`;
             } else if (role === 'ai') {
-                const htmlContent = marked.parse(content); // Converte Markdown
                 const uniqueId = 'msg_' + Date.now();
                 msgDiv.className = 'flex justify-start';
                 msgDiv.innerHTML = `
                     <div class="bg-aiBubble border border-gray-800 text-gray-200 p-5 rounded-2xl rounded-tl-sm max-w-[90%] shadow-lg">
-                        <div class="text-sm font-semibold mb-3 text-accentGold flex gap-2 items-center">
-                            🦉 A.T.H.E.N.A.
-                        </div>
-                        <div class="markdown-body text-sm leading-relaxed" id="${uniqueId}">${htmlContent}</div>
-                        
-                        <!-- Barra de Ferramentas da Resposta -->
-                        <div class="mt-4 flex gap-3 border-t border-gray-800 pt-3">
-                            <button onclick="playTTS(document.getElementById('${uniqueId}').innerText)" class="text-xs text-gray-400 hover:text-white bg-gray-800 px-3 py-1.5 rounded flex gap-2 items-center"><i class="fas fa-volume-up"></i> Ouvir</button>
+                        <div class="text-sm font-semibold mb-3 text-accentGold flex gap-2 items-center">🦉 ATHENA IA</div>
+                        <div class="markdown-body text-sm leading-relaxed" id="${uniqueId}">${marked.parse(content)}</div>
+                        <div class="mt-4 flex flex-wrap gap-2 border-t border-gray-800 pt-3">
+                            <button onclick="toggleTTS('${uniqueId}', this)" class="text-xs text-gray-400 hover:text-white bg-gray-800 px-3 py-1.5 rounded flex gap-2 items-center"><i class="fas fa-volume-up"></i> Ouvir</button>
                             <button onclick="copyToClipboard('${uniqueId}')" class="text-xs text-gray-400 hover:text-white bg-gray-800 px-3 py-1.5 rounded flex gap-2 items-center"><i class="fas fa-copy"></i> Copiar</button>
                             <button onclick="exportToObsidian('${uniqueId}')" class="text-xs text-purple-400 hover:text-purple-300 bg-gray-800 px-3 py-1.5 rounded flex gap-2 items-center"><i class="fas fa-cube"></i> Salvar no Obsidian</button>
                         </div>
                     </div>`;
-            } else if (role === 'error') {
-                msgDiv.className = 'flex justify-center';
-                msgDiv.innerHTML = `
-                    <div class="bg-red-900/30 border border-red-800 text-red-200 p-4 rounded-xl w-full text-sm flex gap-3">
-                        <i class="fas fa-exclamation-triangle mt-0.5 text-red-500"></i>
-                        <div>${content}</div>
-                    </div>`;
             }
-            
             container.appendChild(msgDiv);
             scrollToBottom();
-            saveCurrentChatHistory();
+            saveCurrentChatHTML();
         }
 
-        // --- 4. FUNCIONALIDADES AVANÇADAS: ÁUDIO, EXPORTAÇÃO, MENUS ---
-        function checkAndRenameChat(firstMsg) {
-            const titleEl = document.getElementById('currentChatTitle');
-            if (titleEl.innerText === "Nova Conversa") {
-                const newTitle = firstMsg.substring(0, 25) + "...";
-                titleEl.innerText = newTitle;
-                // Atualiza no DB
-                const tx = db.transaction("chats", "readwrite");
-                const store = tx.objectStore("chats");
-                store.get(currentChatId).onsuccess = (e) => {
-                    const chat = e.target.result;
-                    if(chat) {
-                        chat.title = newTitle;
-                        store.put(chat);
-                        loadChatList();
-                    }
-                };
-            }
-        }
-
-        let currentUtterance = null;
-        function playTTS(text) {
-            if (window.speechSynthesis.speaking) {
-                window.speechSynthesis.cancel(); // Toggle Stop
+        // 3. TTS (Text-to-Speech) E MODO LIVE
+        function toggleTTS(elementId, btnElement) {
+            if (isSpeaking) {
+                window.speechSynthesis.cancel();
+                isSpeaking = false;
+                if(btnElement) btnElement.innerHTML = '<i class="fas fa-volume-up"></i> Ouvir';
                 return;
             }
-            const speed = parseFloat(document.getElementById('speedSelect').value);
+            const text = document.getElementById(elementId).innerText;
+            playTTS(text, btnElement);
+        }
+
+        function playTTS(text, btnElement) {
+            window.speechSynthesis.cancel(); // Limpa buffer
             currentUtterance = new SpeechSynthesisUtterance(text);
-            currentUtterance.rate = speed;
-            currentUtterance.lang = 'pt-BR'; // Detect language logic can be added here
+            
+            // Detecção de idioma
+            const isSpanish = text.match(/[ñ¿¡]/i);
+            currentUtterance.lang = isSpanish ? 'es-ES' : 'pt-BR';
+            
+            // Busca voz feminina (Mulher Jovem ~35 anos)
+            let voices = window.speechSynthesis.getVoices();
+            let femaleVoice = voices.find(v => (v.lang.includes(currentUtterance.lang) && (v.name.includes('Female') || v.name.includes('Mulher') || v.name.includes('Francisca'))));
+            if(femaleVoice) currentUtterance.voice = femaleVoice;
+            
+            currentUtterance.rate = parseFloat(document.getElementById('speedSelect').value);
+            
+            currentUtterance.onstart = () => { isSpeaking = true; if(btnElement) btnElement.innerHTML = '<i class="fas fa-stop"></i> Parar'; };
+            currentUtterance.onend = () => { isSpeaking = false; if(btnElement) btnElement.innerHTML = '<i class="fas fa-volume-up"></i> Ouvir'; };
+            
             window.speechSynthesis.speak(currentUtterance);
         }
 
-        function toggleLiveMode() {
-            isLiveMode = !isLiveMode;
-            const btn = document.getElementById('liveToggleBtn');
-            const indicator = document.getElementById('liveIndicator');
-            if(isLiveMode) {
-                indicator.classList.remove('bg-red-500', 'shadow-[0_0_8px_rgba(239,68,68,0.8)]');
-                indicator.classList.add('bg-green-500', 'shadow-[0_0_8px_rgba(34,197,94,0.8)]');
-                btn.classList.add('border-green-900', 'bg-green-900/20');
-            } else {
-                indicator.classList.remove('bg-green-500', 'shadow-[0_0_8px_rgba(34,197,94,0.8)]');
-                indicator.classList.add('bg-red-500', 'shadow-[0_0_8px_rgba(239,68,68,0.8)]');
-                btn.classList.remove('border-green-900', 'bg-green-900/20');
+        // Sobrescrita Dinâmica de Velocidade TTS
+        document.getElementById('speedSelect').addEventListener('change', () => {
+            if (isSpeaking && lastAiMessageText) {
+                window.speechSynthesis.cancel();
+                playTTS(lastAiMessageText, null);
             }
-        }
-
-        function exportToObsidian(elementId) {
-            const text = document.getElementById(elementId).innerText;
-            const blob = new Blob([text], { type: "text/markdown" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Athena_Nota_${Date.now()}.md`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function exportBunker() {
-            const tx = db.transaction("chats", "readonly");
-            const store = tx.objectStore("chats");
-            const req = store.getAll();
-            req.onsuccess = () => {
-                const data = JSON.stringify(req.result, null, 2);
-                const blob = new Blob([data], { type: "application/json" });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `AthenaOS_Bunker_${new Date().toISOString().slice(0,10)}.json`;
-                a.click();
-            };
-        }
-
-        // Lógica do Menu 3 Pontinhos
-        function toggleMenu(e, chatId) {
-            e.stopPropagation();
-            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('active'));
-            document.getElementById(`menu_${chatId}`).classList.toggle('active');
-        }
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('active'));
         });
 
-        function actionDelete(e, chatId) {
-            e.stopPropagation();
-            if(confirm('Excluir esta conversa permanentemente?')) {
-                db.transaction("chats", "readwrite").objectStore("chats").delete(chatId).onsuccess = () => {
-                    if(currentChatId === chatId) createNewChat();
-                    else loadChatList();
-                };
+        // 4. DOCUMENT PiP (Picture-in-Picture)
+        async function requestPiPWindow() {
+            if (!('documentPictureInPicture' in window)) return alert("Document PiP não suportado neste navegador.");
+            if(confirm("Iniciar modo Live Flutuante? A IA solicitará câmera e microfone.")) {
+                try {
+                    const pipWindow = await window.documentPictureInPicture.requestWindow({ width: 400, height: 600 });
+                    pipWindow.document.body.innerHTML = `<div style="background:#000; color:#fff; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:sans-serif;"><h3>ATHENA Live</h3><video id="pipVideo" autoplay muted playsinline style="width:100%; max-height:70%;"></video></div>`;
+                    
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    pipWindow.document.getElementById('pipVideo').srcObject = stream;
+                    
+                    pipWindow.addEventListener("pagehide", () => { stream.getTracks().forEach(t => t.stop()); });
+                } catch(e) { alert("Erro ao iniciar Live: " + e.message); }
             }
         }
+
+        // 5. UTILITÁRIOS (Menus, UI, Exportações)
+        function toggleMenu(e, id) { e.stopPropagation(); document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('active')); document.getElementById(`menu_${id}`).classList.toggle('active'); }
+        document.addEventListener('click', () => document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('active')));
         
-        function actionPin(e, chatId) {
-            e.stopPropagation();
-            const tx = db.transaction("chats", "readwrite");
-            const store = tx.objectStore("chats");
-            store.get(chatId).onsuccess = (ev) => {
-                const chat = ev.target.result;
-                chat.pinned = !chat.pinned;
-                store.put(chat).onsuccess = () => loadChatList();
-            };
-        }
+        function actionDelete(e, id) { e.stopPropagation(); if(confirm('Excluir chat?')) db.transaction("chats", "readwrite").objectStore("chats").delete(id).onsuccess = () => { if(currentChatId === id) createNewChat(); else loadChatList(); }; }
+        function actionPin(e, id) { e.stopPropagation(); const store = db.transaction("chats", "readwrite").objectStore("chats"); store.get(id).onsuccess = (ev) => { const chat = ev.target.result; chat.pinned = !chat.pinned; store.put(chat).onsuccess = () => loadChatList(); }; }
+        function actionRename(e, id) { e.stopPropagation(); const n = prompt("Novo título:"); if(n) { const store = db.transaction("chats", "readwrite").objectStore("chats"); store.get(id).onsuccess = (ev) => { const chat = ev.target.result; chat.title = n; store.put(chat).onsuccess = () => loadChatList(); }; } }
+        
+        function exportToObsidian(id) { const blob = new Blob([document.getElementById(id).innerText], { type: "text/markdown" }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Athena_${Date.now()}.md`; a.click(); }
+        function copyToClipboard(id) { navigator.clipboard.writeText(document.getElementById(id).innerText); }
+        function exportBunker() { const req = db.transaction("chats", "readonly").objectStore("chats").getAll(); req.onsuccess = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(req.result, null, 2)], {type: "application/json"})); a.download = `Athena_Bunker_${Date.now()}.json`; a.click(); }; }
 
-        function actionRename(e, chatId) {
-            e.stopPropagation();
-            const newName = prompt("Novo nome para a conversa:");
-            if(newName) {
-                const tx = db.transaction("chats", "readwrite");
-                const store = tx.objectStore("chats");
-                store.get(chatId).onsuccess = (ev) => {
-                    const chat = ev.target.result;
-                    chat.title = newName;
-                    store.put(chat).onsuccess = () => {
-                        loadChatList();
-                        if(currentChatId === chatId) document.getElementById('currentChatTitle').innerText = newName;
-                    };
-                };
-            }
-        }
-
-        // Utils
-        function autoResize(el) {
-            el.style.height = 'auto';
-            el.style.height = el.scrollHeight + 'px';
-        }
-        function handleEnter(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        }
-        function scrollToBottom() {
-            const c = document.getElementById('chatContainer');
-            if (c.scrollHeight - c.scrollTop > c.clientHeight + 200) return; // Smart Auto-Scroll
-            c.scrollTop = c.scrollHeight;
-        }
-        function saveCurrentChatHistory() {
+        function autoResize(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+        function handleEnter(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+        function scrollToBottom() { const c = document.getElementById('chatContainer'); if (c.scrollHeight - c.scrollTop <= c.clientHeight + 300) c.scrollTop = c.scrollHeight; }
+        
+        function saveCurrentChatHTML() {
             if(!currentChatId) return;
-            const tx = db.transaction("chats", "readwrite");
-            const store = tx.objectStore("chats");
+            const store = db.transaction("chats", "readwrite").objectStore("chats");
             store.get(currentChatId).onsuccess = (e) => {
                 const chat = e.target.result;
-                if(chat) {
-                    chat.htmlContent = document.getElementById('chatContainer').innerHTML;
-                    chat.updatedAt = Date.now();
-                    store.put(chat);
-                }
+                if(chat) { chat.htmlContent = document.getElementById('chatContainer').innerHTML; chat.updatedAt = Date.now(); store.put(chat); }
             };
         }
-        function openChat(chatId) {
-            currentChatId = chatId;
-            const tx = db.transaction("chats", "readonly");
-            tx.objectStore("chats").get(chatId).onsuccess = (e) => {
+        function openChat(id) {
+            currentChatId = id;
+            db.transaction("chats", "readonly").objectStore("chats").get(id).onsuccess = (e) => {
                 const chat = e.target.result;
                 if(chat) {
                     document.getElementById('currentChatTitle').innerText = chat.title;
+                    document.getElementById('chatRetention').value = chat.retention || "1M";
                     document.getElementById('chatContainer').innerHTML = chat.htmlContent || '';
-                    loadChatList();
-                    scrollToBottom();
+                    loadChatList(); scrollToBottom();
                 }
             };
-        }
-        function copyToClipboard(elementId) {
-            const text = document.getElementById(elementId).innerText;
-            navigator.clipboard.writeText(text);
-            alert("Copiado para a área de transferência!");
         }
     </script>
 </body>

@@ -12,27 +12,36 @@
         .accent-orange { color: #ff9800; }
         .bg-orange { background-color: #ff9800; }
         .chat-container { scroll-behavior: smooth; }
-        /* Scrollbar customizada */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background-color: #333; border-radius: 10px; }
+        
+        /* Oculta o input de arquivo original */
+        input[type="file"] { display: none; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
 
     <!-- Sidebar Lateral -->
-    <aside class="sidebar w-64 flex flex-col p-4">
+    <aside class="sidebar w-64 flex flex-col p-4 relative z-10">
         <div class="flex items-center gap-2 mb-6">
             <span class="text-2xl">⚡</span>
             <h1 class="text-xl font-bold tracking-wider">A.T.H.E.N.A. <span class="text-xs bg-orange text-black px-1 rounded">v5.2</span></h1>
         </div>
         
-        <button class="bg-orange text-black font-bold py-2 px-4 rounded mb-6 hover:bg-orange-600 transition">
+        <button class="bg-orange text-black font-bold py-2 px-4 rounded mb-6 hover:bg-orange-600 transition shadow-lg">
             + Nova Sessão
         </button>
 
+        <div class="mb-6">
+            <h3 class="text-xs text-gray-500 mb-2 uppercase tracking-wide">Nível Atual</h3>
+            <div class="bg-[#1a1a1c] border border-gray-700 p-2 rounded text-sm text-center text-orange-500 font-bold tracking-widest uppercase">
+                Veterano <!-- Níveis: Inerte, Aspirante, Resiliente, Veterano, Elite -->
+            </div>
+        </div>
+
         <div class="mb-4">
             <h3 class="text-xs text-gray-500 mb-2 uppercase tracking-wide">Integrações:</h3>
-            <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-orange-400 transition">
                 <input type="checkbox" id="modo-semiologico" class="rounded bg-gray-800 border-gray-600 text-orange-500 focus:ring-orange-500">
                 🩺 Modo Semiológico
             </label>
@@ -41,7 +50,7 @@
         <!-- Menu de Retenção de Chat -->
         <div class="mt-auto">
             <h3 class="text-xs text-gray-500 mb-2 uppercase tracking-wide">Retenção de Chat:</h3>
-            <select id="chat-retention" class="w-full bg-[#1a1a1c] border border-gray-700 text-white text-sm rounded p-2 outline-none">
+            <select id="chat-retention" class="w-full bg-[#1a1a1c] border border-gray-700 text-white text-sm rounded p-2 outline-none hover:border-gray-500 transition cursor-pointer">
                 <option value="1_month" selected>Excluir em 1 Mês (Padrão)</option>
                 <option value="2_months">Excluir em 2 Meses</option>
                 <option value="3_months">Excluir em 3 Meses</option>
@@ -57,15 +66,14 @@
     <main class="flex-1 flex flex-col relative">
         
         <!-- Cabeçalho (Controles) -->
-        <header class="h-16 border-b border-[#1f1f22] bg-[#0d0d0f] flex items-center justify-between px-6">
-            <select id="model-select" class="bg-[#1a1a1c] border border-gray-700 text-white rounded p-1 outline-none text-sm">
+        <header class="h-16 border-b border-[#1f1f22] bg-[#0d0d0f] flex items-center justify-between px-6 z-10">
+            <select id="model-select" class="bg-[#1a1a1c] border border-gray-700 text-white rounded p-1 outline-none text-sm cursor-pointer">
                 <option value="qwen">🧠 Nuvem (Qwen Coder 32B)</option>
-                <option value="gemini">🧠 Nuvem (Gemini Flash)</option>
-                <option value="local">🖥️ Local (LM Studio - 1234)</option>
+                <option value="gemini">🧠 Nuvem (Gemini)</option>
+                <option value="local">🖥️ Local (LM Studio)</option>
             </select>
 
             <div class="flex items-center gap-3">
-                <!-- Seletor de Velocidade de Voz -->
                 <select id="speed-select" class="bg-[#1a1a1c] border border-gray-700 text-white rounded p-1 text-sm outline-none cursor-pointer">
                     <option value="0.75">0.75x</option>
                     <option value="1.0" selected>1.0x</option>
@@ -76,37 +84,39 @@
                     <option value="4.0">4.0x</option>
                 </select>
 
-                <button id="live-btn" class="flex items-center gap-2 bg-[#1a1a1c] hover:bg-gray-800 border border-gray-700 px-3 py-1 text-sm rounded transition">
+                <button id="live-btn" class="flex items-center gap-2 bg-[#1a1a1c] hover:bg-gray-800 border border-gray-700 px-3 py-1 text-sm rounded transition cursor-pointer">
                     🎤 Live
                 </button>
-                <div id="live-indicator" class="w-3 h-3 rounded-full bg-red-900"></div>
+                <div id="live-indicator" class="w-3 h-3 rounded-full bg-red-900 transition-colors shadow-sm"></div>
 
-                <button id="pip-btn" class="bg-[#1a1a1c] hover:bg-gray-800 border border-gray-700 px-3 py-1 text-sm rounded transition">
+                <button id="pip-btn" class="bg-[#1a1a1c] hover:bg-gray-800 border border-gray-700 px-3 py-1 text-sm rounded transition cursor-pointer">
                     PiP ⧉
                 </button>
             </div>
         </header>
 
         <!-- Container de Mensagens -->
-        <div id="chat-box" class="chat-container flex-1 overflow-y-auto p-6 space-y-4">
-            <!-- Mensagens aparecerão aqui -->
+        <div id="chat-box" class="chat-container flex-1 overflow-y-auto p-6 space-y-6">
+            <!-- Mensagens renderizadas dinamicamente -->
         </div>
 
         <!-- Input Estilo WhatsApp -->
         <div class="p-4 bg-[#0d0d0f]">
             <div class="flex items-end gap-2 bg-[#1a1a1c] border border-gray-700 rounded-xl p-2 relative focus-within:border-[#ff9800] transition-colors">
-                <button class="p-2 text-gray-400 hover:text-white transition">
-                    📎 <!-- Ícone de Anexo -->
-                </button>
+                <label class="p-2 text-gray-400 hover:text-white transition cursor-pointer">
+                    📎
+                    <input type="file" id="file-upload" accept="image/*,.pdf,.doc,.txt">
+                </label>
                 <textarea id="user-input" rows="1" class="w-full bg-transparent text-white outline-none resize-none max-h-32 py-2" placeholder="Mensagem (Shift+Enter para pular linha)..."></textarea>
-                <button id="send-btn" class="bg-orange text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-orange-600 transition">
+                <button id="send-btn" class="bg-orange text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-orange-600 transition shadow-md">
                     Enviar 🦉
                 </button>
             </div>
+            <!-- Div para mostrar o arquivo anexado -->
+            <div id="attachment-preview" class="hidden mt-2 text-xs text-orange-400 ml-10"></div>
         </div>
     </main>
 
-    <!-- Lógica de Funcionamento (JavaScript) -->
     <script>
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
@@ -115,9 +125,28 @@
         const pipBtn = document.getElementById('pip-btn');
         const liveIndicator = document.getElementById('live-indicator');
         const speedSelect = document.getElementById('speed-select');
+        const fileUpload = document.getElementById('file-upload');
+        const attachmentPreview = document.getElementById('attachment-preview');
+        
         let mediaStream = null;
+        let recognition = null;
+        let lastAiMessage = ""; // Memória da última mensagem para a função "Repetir"
+        let attachedFileBase64 = null;
 
-        // 1. Lógica de Envio e Shift+Enter (UX WhatsApp)
+        // 1. Tratamento de Anexo (Upload de Imagens/Arquivos)
+        fileUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            
+            attachmentPreview.classList.remove('hidden');
+            attachmentPreview.innerText = `Anexado: ${file.name}`;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => { attachedFileBase64 = event.target.result; };
+            reader.readAsDataURL(file);
+        });
+
+        // 2. Lógica de Envio (UX WhatsApp)
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -125,7 +154,6 @@
             }
         });
 
-        // Ajuste automático da altura do textarea
         userInput.addEventListener('input', function() {
             this.style.height = 'auto';
             this.style.height = (this.scrollHeight) + 'px';
@@ -133,21 +161,28 @@
 
         sendBtn.addEventListener('click', sendMessage);
 
-        async function sendMessage() {
-            const text = userInput.value.trim();
-            if (!text) return;
+        async function sendMessage(textOverride = null) {
+            const text = textOverride || userInput.value.trim();
+            if (!text && !attachedFileBase64) return;
 
-            appendMessage('Você', text, 'user');
+            appendMessage('Você', text + (attachedFileBase64 ? ' [Arquivo Anexado]' : ''), 'user');
             userInput.value = '';
             userInput.style.height = 'auto';
+            
+            // Limpa anexo após envio
+            let currentImage = attachedFileBase64;
+            attachedFileBase64 = null;
+            attachmentPreview.classList.add('hidden');
+            attachmentPreview.innerText = '';
+            fileUpload.value = '';
 
             try {
-                // Modifique esta URL para a rota correta do seu Flask backend
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         message: text,
+                        image: currentImage,
                         modoSemiologico: document.getElementById('modo-semiologico').checked,
                         modelo: document.getElementById('model-select').value
                     })
@@ -156,14 +191,15 @@
                 const data = await response.json();
                 
                 if(data.error) {
-                    appendMessage('⚠️ Erro de Comunicação', data.error, 'error');
+                    appendMessage('⚠️ Erro de API', data.error, 'error');
                 } else {
+                    lastAiMessage = data.reply; // Salva para a função repetir
                     appendMessage('🦉 A.T.H.E.N.A.', data.reply, 'ai');
-                    speakText(data.reply); // Chama a leitura de voz
+                    speakText(data.reply);
                 }
 
             } catch (error) {
-                appendMessage('⚠️ Erro Crítico', 'Falha ao conectar com o servidor local. Verifique o Flask.', 'error');
+                appendMessage('⚠️ Erro Crítico', 'Falha ao conectar com o servidor Flask.', 'error');
             }
         }
 
@@ -171,21 +207,19 @@
             const msgDiv = document.createElement('div');
             
             if (type === 'user') {
-                msgDiv.className = 'ml-auto bg-orange text-black p-3 rounded-lg max-w-[75%] shadow-md';
+                msgDiv.className = 'ml-auto bg-orange text-black p-3 rounded-lg max-w-[75%] shadow-md leading-relaxed';
                 msgDiv.innerHTML = `<strong>${sender}:</strong><br>${text.replace(/\n/g, '<br>')}`;
             } else if (type === 'error') {
-                msgDiv.className = 'bg-red-900/30 border border-red-800 text-red-200 p-4 rounded-lg w-full mb-4 shadow-md';
+                msgDiv.className = 'bg-red-900/30 border border-red-800 text-red-200 p-4 rounded-lg w-full shadow-md';
                 msgDiv.innerHTML = `<strong>${sender}:</strong><br>${text}`;
             } else {
-                msgDiv.className = 'mr-auto bg-[#1a1a1c] border border-gray-800 text-gray-200 p-4 rounded-lg max-w-[85%] shadow-md';
-                // Renderização nativa de Markdown
+                msgDiv.className = 'mr-auto bg-[#1a1a1c] border border-gray-800 text-gray-200 p-5 rounded-lg max-w-[85%] shadow-lg leading-relaxed';
                 const htmlContent = marked.parse(text);
-                msgDiv.innerHTML = `<div class="mb-3"><strong>${sender}:</strong></div><div class="prose prose-invert">${htmlContent}</div>`;
+                msgDiv.innerHTML = `<div class="mb-3 text-orange-400 tracking-wide text-sm"><strong>${sender}</strong></div><div class="prose prose-invert max-w-none">${htmlContent}</div>`;
                 
-                // Botão de Integração Obsidian
                 const obsidianBtn = document.createElement('button');
-                obsidianBtn.className = "mt-3 text-xs bg-gray-800 hover:bg-gray-700 px-2 py-1 rounded text-gray-400";
-                obsidianBtn.innerText = "Salvar no Obsidian 🗃️";
+                obsidianBtn.className = "mt-4 text-xs bg-gray-800 border border-gray-700 hover:bg-gray-700 px-3 py-1.5 rounded text-gray-300 transition-colors shadow-sm flex gap-2 items-center";
+                obsidianBtn.innerHTML = "🗃️ Salvar no Obsidian";
                 obsidianBtn.onclick = () => saveToObsidian(text);
                 msgDiv.appendChild(obsidianBtn);
             }
@@ -194,79 +228,116 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // 2. Sistema Avançado de Voz e Velocidade
+        // 3. Sistema de Voz Bilíngue e Autoridade Feminina
         function speakText(text) {
-            // Remove marcações markdown (como ** ou #) para a IA não ler os asteriscos em voz alta
-            const cleanText = text.replace(/[*#_`]/g, '');
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            
-            // Aplica a velocidade selecionada no menu
-            utterance.rate = parseFloat(speedSelect.value);
-            utterance.lang = 'pt-BR';
-            
-            // Busca uma voz feminina (depende das vozes instaladas no OS do usuário)
-            const voices = speechSynthesis.getVoices();
-            const femaleVoice = voices.find(v => v.lang.includes('pt') && (v.name.includes('Female') || v.name.includes('Maria') || v.name.includes('Google')));
-            if(femaleVoice) utterance.voice = femaleVoice;
+            if ('speechSynthesis' in window) {
+                speechSynthesis.cancel(); // Para qualquer leitura anterior
+                
+                const cleanText = text.replace(/[*#_`]/g, ''); // Limpa markdown
+                const utterance = new SpeechSynthesisUtterance(cleanText);
+                utterance.rate = parseFloat(speedSelect.value);
+                
+                // Detecção simples de idioma (Espanhol vs Português)
+                const isSpanish = /\b(el|la|los|las|y|en|un|una|del)\b/i.test(cleanText.substring(0, 50));
+                utterance.lang = isSpanish ? 'es-ES' : 'pt-BR';
+                
+                // Busca voz feminina premium (~35 anos, elegante/autoridade)
+                const voices = speechSynthesis.getVoices();
+                let selectedVoice = voices.find(v => v.lang.includes(isSpanish ? 'es' : 'pt') && 
+                    (v.name.includes('Francisca') || v.name.includes('Luciana') || v.name.includes('Helena') || v.name.includes('Female')));
+                
+                if(selectedVoice) utterance.voice = selectedVoice;
 
-            speechSynthesis.speak(utterance);
+                speechSynthesis.speak(utterance);
+            }
         }
 
-        // 3. Modo Live (Microfone e Câmera)
+        // 4. Modo Live Multimodal e Reconhecimento de Comando ("Repita")
         liveBtn.addEventListener('click', async () => {
             if (!mediaStream) {
                 try {
+                    // Ativa Câmera e Microfone
                     mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                     liveIndicator.classList.replace('bg-red-900', 'bg-green-500');
-                    liveBtn.classList.add('border-green-500');
-                    alert("Acesso concedido. Modo Live Multimodal ativado.");
-                    // Lógica para enviar o stream para análise da IA iria aqui
+                    liveIndicator.classList.add('animate-pulse');
+                    liveBtn.classList.add('border-green-500', 'text-green-400');
+                    
+                    // Inicia Reconhecimento de Voz nativo
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    if (SpeechRecognition) {
+                        recognition = new SpeechRecognition();
+                        recognition.lang = 'pt-BR';
+                        recognition.continuous = true;
+                        
+                        recognition.onresult = (event) => {
+                            const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+                            
+                            // Comando Especial: Repetir última mensagem
+                            if (transcript.includes("repita a última") || transcript.includes("repetir a última")) {
+                                if(lastAiMessage) speakText("Repetindo: " + lastAiMessage);
+                            } else {
+                                // Se não for comando, joga no input e envia
+                                sendMessage(transcript);
+                            }
+                        };
+                        recognition.start();
+                    }
+
                 } catch (err) {
-                    alert("Erro ou permissão negada para Câmera/Microfone: " + err);
+                    alert("Erro ao acessar Câmera/Microfone. Verifique as permissões do navegador.");
                 }
             } else {
-                // Desligar
+                // Desligar Live
                 mediaStream.getTracks().forEach(track => track.stop());
                 mediaStream = null;
+                if(recognition) recognition.stop();
+                
                 liveIndicator.classList.replace('bg-green-500', 'bg-red-900');
-                liveBtn.classList.remove('border-green-500');
+                liveIndicator.classList.remove('animate-pulse');
+                liveBtn.classList.remove('border-green-500', 'text-green-400');
             }
         });
 
-        // 4. Modo Picture-in-Picture (Janela Flutuante Document PiP API)
+        // 5. Picture-in-Picture (Janela Flutuante)
         pipBtn.addEventListener('click', async () => {
             if (!('documentPictureInPicture' in window)) {
-                alert("Seu navegador não suporta a API de Document Picture-in-Picture.");
+                alert("API PiP não suportada neste navegador (Requer Chrome/Edge atualizado).");
                 return;
             }
             try {
-                const pipWindow = await window.documentPictureInPicture.requestWindow({
-                    width: 400,
-                    height: 600,
-                });
-                // Copia o estilo e o chat atual para a janela flutuante
-                const styles = Array.from(document.styleSheets).map(styleSheet => {
-                    try { return Array.from(styleSheet.cssRules).map(rule => rule.cssText).join(''); } catch(e) { return ''; }
-                }).join('\n');
+                const pipWindow = await window.documentPictureInPicture.requestWindow({ width: 450, height: 700 });
                 
-                const styleEl = pipWindow.document.createElement('style');
-                styleEl.textContent = styles;
-                pipWindow.document.head.appendChild(styleEl);
-                pipWindow.document.body.className = "bg-[#0d0d0f] text-white p-4";
-                pipWindow.document.body.innerHTML = "<h2 class='text-orange-500 mb-4 font-bold'>A.T.H.E.N.A. Live</h2>" + chatBox.innerHTML;
+                // Copia estilos vitais
+                const tailwindScript = pipWindow.document.createElement('script');
+                tailwindScript.src = "https://cdn.tailwindcss.com";
+                pipWindow.document.head.appendChild(tailwindScript);
+                
+                pipWindow.document.body.className = "bg-[#0d0d0f] text-white p-4 font-sans";
+                pipWindow.document.body.innerHTML = `
+                    <div class="flex items-center gap-2 mb-4 border-b border-gray-800 pb-2">
+                        <span class="text-orange-500">⚡</span>
+                        <h2 class="font-bold text-lg tracking-wider">A.T.H.E.N.A. <span class="text-xs bg-orange-500 text-black px-1 rounded">Live</span></h2>
+                    </div>
+                    <div id="pip-chat" class="overflow-y-auto h-[90%] space-y-4 text-sm">
+                        ${chatBox.innerHTML}
+                    </div>
+                `;
             } catch (err) {
-                console.error("Erro ao iniciar PiP:", err);
+                console.error("Erro PiP:", err);
             }
         });
 
-        // 5. Salvar no Obsidian (Geração de .md)
+        // 6. Integração Obsidian
         function saveToObsidian(text) {
             const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
             const a = document.createElement("a");
             a.href = URL.createObjectURL(blob);
-            a.download = `Athena_Nota_${new Date().toISOString().slice(0,10)}.md`;
+            a.download = `Athena_OS_Registro_${new Date().toISOString().slice(0,10)}.md`;
             a.click();
         }
+
+        // Carrega vozes de antemão para evitar delay
+        window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
     </script>
 </body>
 </html>

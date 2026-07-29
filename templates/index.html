@@ -14,12 +14,26 @@
         .chat-container { scroll-behavior: smooth; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background-color: #333; border-radius: 10px; }
-        
-        /* Oculta o input de arquivo original */
         input[type="file"] { display: none; }
+        
+        /* Widget da Câmera Flutuante */
+        #camera-widget {
+            position: absolute; top: 80px; right: 20px; width: 240px;
+            background: #000; border: 2px solid #ff9800; border-radius: 12px;
+            overflow: hidden; cursor: grab; z-index: 50; display: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+        }
+        #camera-widget:active { cursor: grabbing; }
+        video { width: 100%; height: auto; transform: scaleX(-1); /* Efeito espelho */ }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
+
+    <!-- Widget da Câmera -->
+    <div id="camera-widget">
+        <div class="bg-gray-900 text-xs text-orange-500 p-1 text-center font-bold tracking-widest">LIVE FEED</div>
+        <video id="user-video" autoplay muted></video>
+    </div>
 
     <!-- Sidebar Lateral -->
     <aside class="sidebar w-64 flex flex-col p-4 relative z-10">
@@ -35,7 +49,7 @@
         <div class="mb-6">
             <h3 class="text-xs text-gray-500 mb-2 uppercase tracking-wide">Nível Atual</h3>
             <div class="bg-[#1a1a1c] border border-gray-700 p-2 rounded text-sm text-center text-orange-500 font-bold tracking-widest uppercase">
-                Veterano <!-- Níveis: Inerte, Aspirante, Resiliente, Veterano, Elite -->
+                Veterano
             </div>
         </div>
 
@@ -47,30 +61,23 @@
             </label>
         </div>
 
-        <!-- Menu de Retenção de Chat -->
         <div class="mt-auto">
             <h3 class="text-xs text-gray-500 mb-2 uppercase tracking-wide">Retenção de Chat:</h3>
             <select id="chat-retention" class="w-full bg-[#1a1a1c] border border-gray-700 text-white text-sm rounded p-2 outline-none hover:border-gray-500 transition cursor-pointer">
-                <option value="1_month" selected>Excluir em 1 Mês (Padrão)</option>
+                <option value="1_month" selected>Excluir em 1 Mês</option>
                 <option value="2_months">Excluir em 2 Meses</option>
-                <option value="3_months">Excluir em 3 Meses</option>
                 <option value="6_months">Excluir em 6 Meses</option>
-                <option value="1_year">Excluir em 1 Ano</option>
-                <option value="2_years">Excluir em 2 Anos</option>
                 <option value="fixed">📌 Fixar Permanentemente</option>
             </select>
         </div>
     </aside>
 
-    <!-- Área Principal do Chat -->
+    <!-- Área Principal -->
     <main class="flex-1 flex flex-col relative">
-        
-        <!-- Cabeçalho (Controles) -->
         <header class="h-16 border-b border-[#1f1f22] bg-[#0d0d0f] flex items-center justify-between px-6 z-10">
             <select id="model-select" class="bg-[#1a1a1c] border border-gray-700 text-white rounded p-1 outline-none text-sm cursor-pointer">
                 <option value="qwen">🧠 Nuvem (Qwen Coder 32B)</option>
                 <option value="gemini">🧠 Nuvem (Gemini)</option>
-                <option value="local">🖥️ Local (LM Studio)</option>
             </select>
 
             <div class="flex items-center gap-3">
@@ -88,31 +95,32 @@
                     🎤 Live
                 </button>
                 <div id="live-indicator" class="w-3 h-3 rounded-full bg-red-900 transition-colors shadow-sm"></div>
-
-                <button id="pip-btn" class="bg-[#1a1a1c] hover:bg-gray-800 border border-gray-700 px-3 py-1 text-sm rounded transition cursor-pointer">
-                    PiP ⧉
-                </button>
+                <button id="pip-btn" class="bg-[#1a1a1c] hover:bg-gray-800 border border-gray-700 px-3 py-1 text-sm rounded transition cursor-pointer">PiP ⧉</button>
             </div>
         </header>
 
-        <!-- Container de Mensagens -->
-        <div id="chat-box" class="chat-container flex-1 overflow-y-auto p-6 space-y-6">
-            <!-- Mensagens renderizadas dinamicamente -->
+        <div id="chat-box" class="chat-container flex-1 overflow-y-auto p-6 space-y-6"></div>
+
+        <!-- Painel Live Flutuante (Transição de Fala) -->
+        <div id="live-control-panel" class="hidden absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-gray-900 border-2 border-orange-500 p-4 rounded-xl shadow-2xl w-3/4 flex flex-col gap-3">
+            <p class="text-xs text-orange-400 font-bold uppercase">Escutando... (Pode fazer pausas, a IA vai aguardar)</p>
+            <div id="live-transcript" class="text-white text-sm italic min-h-[40px] max-h-24 overflow-y-auto"></div>
+            <div class="flex justify-end gap-3">
+                <button id="live-clear-btn" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 text-sm">Limpar</button>
+                <button id="live-send-action-btn" class="px-4 py-1 bg-orange text-black font-bold rounded hover:bg-orange-600 shadow-[0_0_10px_#ff9800]">Transmitir para IA</button>
+            </div>
         </div>
 
-        <!-- Input Estilo WhatsApp -->
-        <div class="p-4 bg-[#0d0d0f]">
+        <div class="p-4 bg-[#0d0d0f] relative z-20">
             <div class="flex items-end gap-2 bg-[#1a1a1c] border border-gray-700 rounded-xl p-2 relative focus-within:border-[#ff9800] transition-colors">
                 <label class="p-2 text-gray-400 hover:text-white transition cursor-pointer">
-                    📎
-                    <input type="file" id="file-upload" accept="image/*,.pdf,.doc,.txt">
+                    📎 <input type="file" id="file-upload" accept="image/*,.pdf,.doc,.txt">
                 </label>
                 <textarea id="user-input" rows="1" class="w-full bg-transparent text-white outline-none resize-none max-h-32 py-2" placeholder="Mensagem (Shift+Enter para pular linha)..."></textarea>
                 <button id="send-btn" class="bg-orange text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-orange-600 transition shadow-md">
                     Enviar 🦉
                 </button>
             </div>
-            <!-- Div para mostrar o arquivo anexado -->
             <div id="attachment-preview" class="hidden mt-2 text-xs text-orange-400 ml-10"></div>
         </div>
     </main>
@@ -122,59 +130,65 @@
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
         const liveBtn = document.getElementById('live-btn');
-        const pipBtn = document.getElementById('pip-btn');
-        const liveIndicator = document.getElementById('live-indicator');
+        const liveControlPanel = document.getElementById('live-control-panel');
+        const liveTranscript = document.getElementById('live-transcript');
+        const liveSendActionBtn = document.getElementById('live-send-action-btn');
+        const liveClearBtn = document.getElementById('live-clear-btn');
+        const cameraWidget = document.getElementById('camera-widget');
+        const userVideo = document.getElementById('user-video');
         const speedSelect = document.getElementById('speed-select');
-        const fileUpload = document.getElementById('file-upload');
-        const attachmentPreview = document.getElementById('attachment-preview');
         
         let mediaStream = null;
         let recognition = null;
-        let lastAiMessage = ""; // Memória da última mensagem para a função "Repetir"
+        let isLiveActive = false;
+        let currentLiveTranscript = "";
+        let lastAiMessageText = ""; 
         let attachedFileBase64 = null;
 
-        // 1. Tratamento de Anexo (Upload de Imagens/Arquivos)
-        fileUpload.addEventListener('change', function(e) {
+        // Anexos
+        document.getElementById('file-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if(!file) return;
-            
-            attachmentPreview.classList.remove('hidden');
-            attachmentPreview.innerText = `Anexado: ${file.name}`;
-            
+            document.getElementById('attachment-preview').classList.remove('hidden');
+            document.getElementById('attachment-preview').innerText = `Anexado: ${file.name}`;
             const reader = new FileReader();
             reader.onload = (event) => { attachedFileBase64 = event.target.result; };
             reader.readAsDataURL(file);
         });
 
-        // 2. Lógica de Envio (UX WhatsApp)
+        // Envio Padrão
         userInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); processSend(false); }
+        });
+        userInput.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px'; });
+        sendBtn.addEventListener('click', () => processSend(false));
+
+        // Envio pelo Live Mode
+        liveSendActionBtn.addEventListener('click', () => {
+            if(currentLiveTranscript.trim() !== "") {
+                const text = currentLiveTranscript;
+                liveClearBtn.click(); // limpa o painel
+                processSend(true, text); // true = forceVoiceResponse
             }
         });
-
-        userInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
+        
+        liveClearBtn.addEventListener('click', () => {
+            currentLiveTranscript = "";
+            liveTranscript.innerText = "";
         });
 
-        sendBtn.addEventListener('click', sendMessage);
-
-        async function sendMessage(textOverride = null) {
-            const text = textOverride || userInput.value.trim();
+        // Função de envio de mensagens e comunicação com o Render
+        async function processSend(isLiveMode = false, overrideText = null) {
+            const text = overrideText || userInput.value.trim();
             if (!text && !attachedFileBase64) return;
 
-            appendMessage('Você', text + (attachedFileBase64 ? ' [Arquivo Anexado]' : ''), 'user');
+            appendMessage('Você', text + (attachedFileBase64 ? ' [Arquivo]' : ''), 'user');
             userInput.value = '';
             userInput.style.height = 'auto';
-            
-            // Limpa anexo após envio
-            let currentImage = attachedFileBase64;
             attachedFileBase64 = null;
-            attachmentPreview.classList.add('hidden');
-            attachmentPreview.innerText = '';
-            fileUpload.value = '';
+            document.getElementById('attachment-preview').classList.add('hidden');
+
+            const loadingId = appendLoading();
 
             try {
                 const response = await fetch('/api/chat', {
@@ -182,27 +196,113 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         message: text,
-                        image: currentImage,
-                        modoSemiologico: document.getElementById('modo-semiologico').checked,
-                        modelo: document.getElementById('model-select').value
+                        modoSemiologico: document.getElementById('modo-semiologico').checked
                     })
                 });
-
+                
+                removeLoading(loadingId);
                 const data = await response.json();
                 
                 if(data.error) {
-                    appendMessage('⚠️ Erro de API', data.error, 'error');
+                    appendMessage('⚠️ Erro na Nuvem', data.error, 'error');
                 } else {
-                    lastAiMessage = data.reply; // Salva para a função repetir
+                    lastAiMessageText = data.reply;
                     appendMessage('🦉 A.T.H.E.N.A.', data.reply, 'ai');
-                    speakText(data.reply);
+                    
+                    // Se a requisição veio do modo Live, responde em voz automaticamente
+                    if (isLiveMode) {
+                        speakText(data.reply);
+                    }
                 }
-
             } catch (error) {
-                appendMessage('⚠️ Erro Crítico', 'Falha ao conectar com o servidor Flask.', 'error');
+                removeLoading(loadingId);
+                appendMessage('⚠️ Erro de Rede', 'O servidor no Render demorou a responder ou está hibernando. Envie novamente.', 'error');
             }
         }
 
+        // Lógica de Voz e Mudança de Velocidade Instantânea
+        speedSelect.addEventListener('change', () => {
+            if(window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel(); 
+                setTimeout(() => { speakText(lastAiMessageText); }, 200); // Reinicia com nova velocidade
+            }
+        });
+
+        function speakText(text) {
+            window.speechSynthesis.cancel(); 
+            lastAiMessageText = text; // Salva para replay
+            const cleanText = text.replace(/[*#_`]/g, ''); 
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.rate = parseFloat(speedSelect.value);
+            
+            const isSpanish = /\b(el|la|los|las|y|en|un|una|del)\b/i.test(cleanText.substring(0, 50));
+            utterance.lang = isSpanish ? 'es-ES' : 'pt-BR';
+            
+            const voices = window.speechSynthesis.getVoices();
+            let selectedVoice = voices.find(v => v.lang.includes(isSpanish ? 'es' : 'pt') && 
+                (v.name.includes('Francisca') || v.name.includes('Luciana') || v.name.includes('Helena') || v.name.includes('Female')));
+            if(selectedVoice) utterance.voice = selectedVoice;
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Modo Live (Webcam e Microfone)
+        liveBtn.addEventListener('click', async () => {
+            if (!isLiveActive) {
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    userVideo.srcObject = mediaStream;
+                    cameraWidget.style.display = 'block';
+                    liveControlPanel.classList.remove('hidden');
+                    
+                    document.getElementById('live-indicator').classList.replace('bg-red-900', 'bg-green-500');
+                    liveBtn.classList.add('border-green-500', 'text-green-400');
+                    isLiveActive = true;
+                    
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    if (SpeechRecognition) {
+                        recognition = new SpeechRecognition();
+                        recognition.lang = 'pt-BR';
+                        recognition.continuous = true;
+                        recognition.interimResults = true;
+                        
+                        recognition.onresult = (event) => {
+                            let interim = '';
+                            let final = '';
+                            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                                if (event.results[i].isFinal) final += event.results[i][0].transcript;
+                                else interim += event.results[i][0].transcript;
+                            }
+                            currentLiveTranscript += final + " ";
+                            liveTranscript.innerText = currentLiveTranscript + interim;
+                        };
+                        recognition.start();
+                        // Reinicia se parar acidentalmente
+                        recognition.onend = () => { if(isLiveActive) recognition.start(); };
+                    }
+                } catch (err) { alert("Permissão de câmera/microfone negada."); }
+            } else {
+                mediaStream.getTracks().forEach(track => track.stop());
+                cameraWidget.style.display = 'none';
+                liveControlPanel.classList.add('hidden');
+                document.getElementById('live-indicator').classList.replace('bg-green-500', 'bg-red-900');
+                liveBtn.classList.remove('border-green-500', 'text-green-400');
+                isLiveActive = false;
+                if(recognition) { recognition.onend = null; recognition.stop(); }
+            }
+        });
+
+        // Arrastar Webcam (Draggable Logic)
+        let isDragging = false, dragStartX, dragStartY;
+        cameraWidget.addEventListener('mousedown', (e) => {
+            isDragging = true; dragStartX = e.clientX - cameraWidget.offsetLeft; dragStartY = e.clientY - cameraWidget.offsetTop;
+        });
+        window.addEventListener('mousemove', (e) => {
+            if(isDragging) { cameraWidget.style.left = (e.clientX - dragStartX) + 'px'; cameraWidget.style.top = (e.clientY - dragStartY) + 'px'; }
+        });
+        window.addEventListener('mouseup', () => isDragging = false);
+
+        // Renderização de Mensagens (inclui Botões de Ouvir e Obsidian)
         function appendMessage(sender, text, type) {
             const msgDiv = document.createElement('div');
             
@@ -214,129 +314,50 @@
                 msgDiv.innerHTML = `<strong>${sender}:</strong><br>${text}`;
             } else {
                 msgDiv.className = 'mr-auto bg-[#1a1a1c] border border-gray-800 text-gray-200 p-5 rounded-lg max-w-[85%] shadow-lg leading-relaxed';
+                
+                // Botão de Forçar Áudio no chat normal
+                const safeTextForAudio = text.replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, " ");
+                
                 const htmlContent = marked.parse(text);
-                msgDiv.innerHTML = `<div class="mb-3 text-orange-400 tracking-wide text-sm"><strong>${sender}</strong></div><div class="prose prose-invert max-w-none">${htmlContent}</div>`;
+                msgDiv.innerHTML = `
+                    <div class="flex justify-between items-center mb-3 border-b border-gray-800 pb-2">
+                        <strong class="text-orange-400 tracking-wide text-sm">${sender}</strong>
+                        <button onclick="speakText('${safeTextForAudio}')" class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded shadow">
+                            🔊 Ouvir
+                        </button>
+                    </div>
+                    <div class="prose prose-invert max-w-none">${htmlContent}</div>`;
                 
                 const obsidianBtn = document.createElement('button');
-                obsidianBtn.className = "mt-4 text-xs bg-gray-800 border border-gray-700 hover:bg-gray-700 px-3 py-1.5 rounded text-gray-300 transition-colors shadow-sm flex gap-2 items-center";
+                obsidianBtn.className = "mt-4 text-xs bg-gray-800 border border-gray-700 hover:bg-gray-700 px-3 py-1.5 rounded text-gray-300 flex gap-2 items-center";
                 obsidianBtn.innerHTML = "🗃️ Salvar no Obsidian";
                 obsidianBtn.onclick = () => saveToObsidian(text);
                 msgDiv.appendChild(obsidianBtn);
             }
-
             chatBox.appendChild(msgDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // 3. Sistema de Voz Bilíngue e Autoridade Feminina
-        function speakText(text) {
-            if ('speechSynthesis' in window) {
-                speechSynthesis.cancel(); // Para qualquer leitura anterior
-                
-                const cleanText = text.replace(/[*#_`]/g, ''); // Limpa markdown
-                const utterance = new SpeechSynthesisUtterance(cleanText);
-                utterance.rate = parseFloat(speedSelect.value);
-                
-                // Detecção simples de idioma (Espanhol vs Português)
-                const isSpanish = /\b(el|la|los|las|y|en|un|una|del)\b/i.test(cleanText.substring(0, 50));
-                utterance.lang = isSpanish ? 'es-ES' : 'pt-BR';
-                
-                // Busca voz feminina premium (~35 anos, elegante/autoridade)
-                const voices = speechSynthesis.getVoices();
-                let selectedVoice = voices.find(v => v.lang.includes(isSpanish ? 'es' : 'pt') && 
-                    (v.name.includes('Francisca') || v.name.includes('Luciana') || v.name.includes('Helena') || v.name.includes('Female')));
-                
-                if(selectedVoice) utterance.voice = selectedVoice;
-
-                speechSynthesis.speak(utterance);
-            }
+        function appendLoading() {
+            const id = 'loading-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'mr-auto text-gray-500 italic text-sm';
+            div.innerText = 'Processando na nuvem (Isso pode levar alguns segundos se o servidor estiver acordando)...';
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return id;
         }
+        function removeLoading(id) { document.getElementById(id)?.remove(); }
 
-        // 4. Modo Live Multimodal e Reconhecimento de Comando ("Repita")
-        liveBtn.addEventListener('click', async () => {
-            if (!mediaStream) {
-                try {
-                    // Ativa Câmera e Microfone
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                    liveIndicator.classList.replace('bg-red-900', 'bg-green-500');
-                    liveIndicator.classList.add('animate-pulse');
-                    liveBtn.classList.add('border-green-500', 'text-green-400');
-                    
-                    // Inicia Reconhecimento de Voz nativo
-                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                    if (SpeechRecognition) {
-                        recognition = new SpeechRecognition();
-                        recognition.lang = 'pt-BR';
-                        recognition.continuous = true;
-                        
-                        recognition.onresult = (event) => {
-                            const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
-                            
-                            // Comando Especial: Repetir última mensagem
-                            if (transcript.includes("repita a última") || transcript.includes("repetir a última")) {
-                                if(lastAiMessage) speakText("Repetindo: " + lastAiMessage);
-                            } else {
-                                // Se não for comando, joga no input e envia
-                                sendMessage(transcript);
-                            }
-                        };
-                        recognition.start();
-                    }
-
-                } catch (err) {
-                    alert("Erro ao acessar Câmera/Microfone. Verifique as permissões do navegador.");
-                }
-            } else {
-                // Desligar Live
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
-                if(recognition) recognition.stop();
-                
-                liveIndicator.classList.replace('bg-green-500', 'bg-red-900');
-                liveIndicator.classList.remove('animate-pulse');
-                liveBtn.classList.remove('border-green-500', 'text-green-400');
-            }
-        });
-
-        // 5. Picture-in-Picture (Janela Flutuante)
-        pipBtn.addEventListener('click', async () => {
-            if (!('documentPictureInPicture' in window)) {
-                alert("API PiP não suportada neste navegador (Requer Chrome/Edge atualizado).");
-                return;
-            }
-            try {
-                const pipWindow = await window.documentPictureInPicture.requestWindow({ width: 450, height: 700 });
-                
-                // Copia estilos vitais
-                const tailwindScript = pipWindow.document.createElement('script');
-                tailwindScript.src = "https://cdn.tailwindcss.com";
-                pipWindow.document.head.appendChild(tailwindScript);
-                
-                pipWindow.document.body.className = "bg-[#0d0d0f] text-white p-4 font-sans";
-                pipWindow.document.body.innerHTML = `
-                    <div class="flex items-center gap-2 mb-4 border-b border-gray-800 pb-2">
-                        <span class="text-orange-500">⚡</span>
-                        <h2 class="font-bold text-lg tracking-wider">A.T.H.E.N.A. <span class="text-xs bg-orange-500 text-black px-1 rounded">Live</span></h2>
-                    </div>
-                    <div id="pip-chat" class="overflow-y-auto h-[90%] space-y-4 text-sm">
-                        ${chatBox.innerHTML}
-                    </div>
-                `;
-            } catch (err) {
-                console.error("Erro PiP:", err);
-            }
-        });
-
-        // 6. Integração Obsidian
         function saveToObsidian(text) {
             const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
             const a = document.createElement("a");
             a.href = URL.createObjectURL(blob);
-            a.download = `Athena_OS_Registro_${new Date().toISOString().slice(0,10)}.md`;
+            a.download = `Athena_OS_${new Date().toISOString().slice(0,10)}.md`;
             a.click();
         }
 
-        // Carrega vozes de antemão para evitar delay
         window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
     </script>
 </body>

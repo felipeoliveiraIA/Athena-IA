@@ -7,226 +7,265 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        body { background-color: #0d0d0f; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #0d0d0f; color: #e2e8f0; font-family: 'Inter', sans-serif; }
         .sidebar { background-color: #080809; border-right: 1px solid #1f1f22; }
-        .chat-container { height: calc(100vh - 160px); overflow-y: auto; scroll-behavior: smooth; }
-        .msg-user { background-color: #ff9800; color: #000; text-align: left; margin-left: auto; max-width: 80%; border-radius: 8px; font-weight: 500; }
-        .msg-ia-container { max-width: 85%; }
-        .msg-ia { background-color: #1a1a1d; color: #d1d5db; border-radius: 8px; border-left: 2px solid #ff9800; }
-        .msg-ia p { margin-bottom: 0.75rem; line-height: 1.6; }
-        .msg-ia ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 0.75rem; }
-        .msg-ia strong { color: #ffb74d; }
-        .btn-action { color: #6b7280; font-size: 0.85rem; cursor: pointer; transition: color 0.2s; display: inline-flex; align-items: center; gap: 0.25rem; }
-        .btn-action:hover { color: #ff9800; }
-        .input-bg { background-color: #1a1a1d; border: 1px solid #2a2a2d; }
+        .accent-orange { color: #ff9800; }
+        .bg-orange { background-color: #ff9800; }
+        .chat-container { scroll-behavior: smooth; }
         /* Scrollbar customizada */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0d0d0f; }
-        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #ff9800; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background-color: #333; border-radius: 10px; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
 
-    <!-- BARRA LATERAL (IDÊNTICA AO PRINT 1) -->
-    <aside class="w-64 sidebar flex flex-col p-5">
-        <h1 class="text-2xl font-black text-white mb-6 flex items-center gap-2">
-            <span class="text-orange-500">⚡</span> A.T.H.E.N.A. <span class="bg-orange-500 text-black text-xs px-2 py-0.5 rounded font-bold ml-1">v5.2</span>
-        </h1>
+    <!-- Sidebar Lateral -->
+    <aside class="sidebar w-64 flex flex-col p-4">
+        <div class="flex items-center gap-2 mb-6">
+            <span class="text-2xl">⚡</span>
+            <h1 class="text-xl font-bold tracking-wider">A.T.H.E.N.A. <span class="text-xs bg-orange text-black px-1 rounded">v5.2</span></h1>
+        </div>
         
-        <button onclick="location.reload()" class="w-full bg-orange-500 hover:bg-orange-600 text-black font-bold py-2.5 px-4 rounded-lg mb-8 transition-colors flex justify-center items-center gap-2">
+        <button class="bg-orange text-black font-bold py-2 px-4 rounded mb-6 hover:bg-orange-600 transition">
             + Nova Sessão
         </button>
 
-        <div class="text-gray-400 text-xs uppercase tracking-wider mb-3">Integrações:</div>
-        <label class="flex items-center gap-2 cursor-pointer text-gray-300 hover:text-white">
-            <input type="checkbox" id="medical-mode" class="form-checkbox w-4 h-4 text-orange-500 rounded bg-gray-800 border-gray-600 focus:ring-orange-500 focus:ring-offset-gray-900">
-            <span class="text-sm">🩺 Modo Semiológico</span>
-        </label>
+        <div class="mb-4">
+            <h3 class="text-xs text-gray-500 mb-2 uppercase tracking-wide">Integrações:</h3>
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" id="modo-semiologico" class="rounded bg-gray-800 border-gray-600 text-orange-500 focus:ring-orange-500">
+                🩺 Modo Semiológico
+            </label>
+        </div>
+
+        <!-- Menu de Retenção de Chat -->
+        <div class="mt-auto">
+            <h3 class="text-xs text-gray-500 mb-2 uppercase tracking-wide">Retenção de Chat:</h3>
+            <select id="chat-retention" class="w-full bg-[#1a1a1c] border border-gray-700 text-white text-sm rounded p-2 outline-none">
+                <option value="1_month" selected>Excluir em 1 Mês (Padrão)</option>
+                <option value="2_months">Excluir em 2 Meses</option>
+                <option value="3_months">Excluir em 3 Meses</option>
+                <option value="6_months">Excluir em 6 Meses</option>
+                <option value="1_year">Excluir em 1 Ano</option>
+                <option value="2_years">Excluir em 2 Anos</option>
+                <option value="fixed">📌 Fixar Permanentemente</option>
+            </select>
+        </div>
     </aside>
 
-    <!-- ÁREA PRINCIPAL -->
+    <!-- Área Principal do Chat -->
     <main class="flex-1 flex flex-col relative">
         
-        <!-- CABEÇALHO SUPERIOR (IDÊNTICO AO PRINT 1) -->
-        <header class="p-4 border-b border-[#1f1f22] bg-[#0d0d0f] flex justify-between items-center">
-            <!-- Modelos Atualizados para Evitar Erro 404 -->
-            <select id="model-select" class="bg-white text-black text-sm font-semibold p-2 rounded outline-none w-72 shadow-sm cursor-pointer">
-                <option value="qwen/qwen-2.5-coder-32b-instruct">🧠 Nuvem (Qwen Coder 32B)</option>
-                <option value="google/gemini-2.0-flash-lite-preview-02-05:free">🧠 Nuvem (Gemini 2.0 Flash Lite - Free)</option>
-                <option value="meta-llama/llama-3-8b-instruct:free">🧠 Nuvem (Llama 3 8B - Free)</option>
-                <option value="local-hd">🖥️ HD Local (LM Studio porta 1234)</option>
+        <!-- Cabeçalho (Controles) -->
+        <header class="h-16 border-b border-[#1f1f22] bg-[#0d0d0f] flex items-center justify-between px-6">
+            <select id="model-select" class="bg-[#1a1a1c] border border-gray-700 text-white rounded p-1 outline-none text-sm">
+                <option value="qwen">🧠 Nuvem (Qwen Coder 32B)</option>
+                <option value="gemini">🧠 Nuvem (Gemini Flash)</option>
+                <option value="local">🖥️ Local (LM Studio - 1234)</option>
             </select>
 
-            <div class="flex items-center gap-3 text-sm font-medium">
-                <select class="bg-[#1a1a1d] text-white p-1.5 px-3 rounded border border-[#2a2a2d] outline-none"><option>1.0x</option></select>
-                <button class="bg-[#1a1a1d] hover:bg-[#2a2a2d] text-white p-1.5 px-3 rounded border border-[#2a2a2d] flex gap-2 items-center">
+            <div class="flex items-center gap-3">
+                <!-- Seletor de Velocidade de Voz -->
+                <select id="speed-select" class="bg-[#1a1a1c] border border-gray-700 text-white rounded p-1 text-sm outline-none cursor-pointer">
+                    <option value="0.75">0.75x</option>
+                    <option value="1.0" selected>1.0x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.50x</option>
+                    <option value="2.0">2.0x</option>
+                    <option value="3.0">3.0x</option>
+                    <option value="4.0">4.0x</option>
+                </select>
+
+                <button id="live-btn" class="flex items-center gap-2 bg-[#1a1a1c] hover:bg-gray-800 border border-gray-700 px-3 py-1 text-sm rounded transition">
                     🎤 Live
                 </button>
-                <button class="bg-[#1a1a1d] hover:bg-red-900 text-red-500 p-1.5 px-3 rounded border border-[#2a2a2d]">🔴</button>
-                <button class="bg-[#1a1a1d] hover:bg-[#2a2a2d] text-white p-1.5 px-3 rounded border border-[#2a2a2d]">PiP</button>
+                <div id="live-indicator" class="w-3 h-3 rounded-full bg-red-900"></div>
+
+                <button id="pip-btn" class="bg-[#1a1a1c] hover:bg-gray-800 border border-gray-700 px-3 py-1 text-sm rounded transition">
+                    PiP ⧉
+                </button>
             </div>
         </header>
 
-        <!-- CAIXA DE CHAT -->
-        <div id="chat-box" class="chat-container p-6 flex flex-col gap-6">
-            <div class="msg-ia-container">
-                <div class="msg-ia p-4 text-sm">
-                    🦉 Athena OS iniciada. Todos os sistemas otimizados. Pronta para os seus projetos.
-                </div>
-                <div class="flex gap-4 mt-2 ml-1">
-                    <span class="btn-action">🔊 Ouvir</span>
-                    <span class="btn-action">💎 Salvar no Obsidian</span>
-                </div>
-            </div>
+        <!-- Container de Mensagens -->
+        <div id="chat-box" class="chat-container flex-1 overflow-y-auto p-6 space-y-4">
+            <!-- Mensagens aparecerão aqui -->
         </div>
 
-        <!-- INDICADOR DE DIGITAÇÃO -->
-        <div id="typing-indicator" class="hidden absolute bottom-24 left-6 text-orange-500 text-sm italic font-medium">
-            <span class="animate-pulse">Athena processando...</span>
-        </div>
-
-        <!-- ÁREA DE INPUT DE MENSAGEM -->
-        <div class="p-4 bg-[#0d0d0f] border-t border-[#1f1f22]">
-            <div class="input-bg flex items-center p-1.5 rounded-xl focus-within:border-orange-500 transition-colors">
-                
-                <label for="image-upload" class="cursor-pointer p-2 px-3 text-gray-400 hover:text-orange-500 transition-colors text-lg" title="Anexar Imagem">
-                    📁
-                </label>
-                <input type="file" id="image-upload" accept="image/*" class="hidden" onchange="previewImage()">
-                
-                <input type="text" id="chat-input" class="flex-1 bg-transparent text-gray-200 p-2 focus:outline-none text-sm" 
-                       placeholder="Mensagem (Shift+Enter para pular linha)..." 
-                       onkeypress="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }">
-                
-                <button onclick="sendMessage()" class="bg-orange-500 hover:bg-orange-600 text-black p-2.5 px-4 rounded-lg flex items-center gap-2 font-bold ml-2 transition-colors">
-                    Enviar <span class="bg-white rounded-full p-0.5 text-xs">🧠</span>
+        <!-- Input Estilo WhatsApp -->
+        <div class="p-4 bg-[#0d0d0f]">
+            <div class="flex items-end gap-2 bg-[#1a1a1c] border border-gray-700 rounded-xl p-2 relative focus-within:border-[#ff9800] transition-colors">
+                <button class="p-2 text-gray-400 hover:text-white transition">
+                    📎 <!-- Ícone de Anexo -->
                 </button>
-            </div>
-            <div id="image-preview" class="hidden mt-2 text-xs text-orange-400 pl-4">
-                🖼️ Imagem carregada. Pronta para o envio.
+                <textarea id="user-input" rows="1" class="w-full bg-transparent text-white outline-none resize-none max-h-32 py-2" placeholder="Mensagem (Shift+Enter para pular linha)..."></textarea>
+                <button id="send-btn" class="bg-orange text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-orange-600 transition">
+                    Enviar 🦉
+                </button>
             </div>
         </div>
     </main>
 
+    <!-- Lógica de Funcionamento (JavaScript) -->
     <script>
-        let currentImageBase64 = null;
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const liveBtn = document.getElementById('live-btn');
+        const pipBtn = document.getElementById('pip-btn');
+        const liveIndicator = document.getElementById('live-indicator');
+        const speedSelect = document.getElementById('speed-select');
+        let mediaStream = null;
 
-        function previewImage() {
-            const file = document.getElementById('image-upload').files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onloadend = () => { 
-                    currentImageBase64 = reader.result; 
-                    document.getElementById('image-preview').classList.remove('hidden'); 
-                };
-                reader.readAsDataURL(file);
+        // 1. Lógica de Envio e Shift+Enter (UX WhatsApp)
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
             }
-        }
+        });
 
-        function salvarNoObsidian(textoCru) {
-            const blob = new Blob([textoCru], { type: 'text/markdown' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            const data = new Date().toISOString().split('T')[0];
-            a.download = `Athena_Nota_${data}.md`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
+        // Ajuste automático da altura do textarea
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
 
-        function ouvirTexto(textoCru) {
-            const textoLimpo = textoCru.replace(/[#*`_]/g, ''); 
-            const utterance = new SpeechSynthesisUtterance(textoLimpo);
-            utterance.lang = 'pt-BR';
-            utterance.rate = 1.1;
-            speechSynthesis.speak(utterance);
-        }
+        sendBtn.addEventListener('click', sendMessage);
 
         async function sendMessage() {
-            const inputField = document.getElementById('chat-input');
-            const message = inputField.value.trim();
-            const modelSelect = document.getElementById('model-select').value;
-            const medicalMode = document.getElementById('medical-mode').checked;
-            
-            if (!message && !currentImageBase64) return;
+            const text = userInput.value.trim();
+            if (!text) return;
 
-            let displayMsg = message;
-            if (currentImageBase64) displayMsg += '<br><span class="text-xs text-black/70 mt-1 block">🖼️ [Imagem Anexada]</span>';
-            
-            appendUserMessage(displayMsg);
-            
-            inputField.value = '';
-            document.getElementById('image-preview').classList.add('hidden');
-            document.getElementById('typing-indicator').classList.remove('hidden');
-
-            const payload = { message: message, model: modelSelect, medical_mode: medicalMode, image: currentImageBase64 };
-            currentImageBase64 = null;
-            document.getElementById('image-upload').value = '';
+            appendMessage('Você', text, 'user');
+            userInput.value = '';
+            userInput.style.height = 'auto';
 
             try {
-                const response = await fetch('/chat', {
+                // Modifique esta URL para a rota correta do seu Flask backend
+                const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ 
+                        message: text,
+                        modoSemiologico: document.getElementById('modo-semiologico').checked,
+                        modelo: document.getElementById('model-select').value
+                    })
                 });
 
                 const data = await response.json();
-                document.getElementById('typing-indicator').classList.add('hidden');
-
-                if (response.ok) {
-                    appendAIMessage(data.response, false, data.response);
+                
+                if(data.error) {
+                    appendMessage('⚠️ Erro de Comunicação', data.error, 'error');
                 } else {
-                    appendAIMessage('⚠️ **Erro de Comunicação:** ' + data.error, true);
+                    appendMessage('🦉 A.T.H.E.N.A.', data.reply, 'ai');
+                    speakText(data.reply); // Chama a leitura de voz
                 }
+
             } catch (error) {
-                document.getElementById('typing-indicator').classList.add('hidden');
-                appendAIMessage('❌ **Erro:** Servidor inacessível.', true);
+                appendMessage('⚠️ Erro Crítico', 'Falha ao conectar com o servidor local. Verifique o Flask.', 'error');
             }
         }
 
-        function appendUserMessage(text) {
-            const chatBox = document.getElementById('chat-box');
+        function appendMessage(sender, text, type) {
             const msgDiv = document.createElement('div');
-            msgDiv.innerHTML = `<div class="font-bold mb-1 text-sm text-black/80">Você:</div>${text}`;
-            msgDiv.className = 'msg-user p-3 px-5 shadow-sm text-sm';
+            
+            if (type === 'user') {
+                msgDiv.className = 'ml-auto bg-orange text-black p-3 rounded-lg max-w-[75%] shadow-md';
+                msgDiv.innerHTML = `<strong>${sender}:</strong><br>${text.replace(/\n/g, '<br>')}`;
+            } else if (type === 'error') {
+                msgDiv.className = 'bg-red-900/30 border border-red-800 text-red-200 p-4 rounded-lg w-full mb-4 shadow-md';
+                msgDiv.innerHTML = `<strong>${sender}:</strong><br>${text}`;
+            } else {
+                msgDiv.className = 'mr-auto bg-[#1a1a1c] border border-gray-800 text-gray-200 p-4 rounded-lg max-w-[85%] shadow-md';
+                // Renderização nativa de Markdown
+                const htmlContent = marked.parse(text);
+                msgDiv.innerHTML = `<div class="mb-3"><strong>${sender}:</strong></div><div class="prose prose-invert">${htmlContent}</div>`;
+                
+                // Botão de Integração Obsidian
+                const obsidianBtn = document.createElement('button');
+                obsidianBtn.className = "mt-3 text-xs bg-gray-800 hover:bg-gray-700 px-2 py-1 rounded text-gray-400";
+                obsidianBtn.innerText = "Salvar no Obsidian 🗃️";
+                obsidianBtn.onclick = () => saveToObsidian(text);
+                msgDiv.appendChild(obsidianBtn);
+            }
+
             chatBox.appendChild(msgDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        function appendAIMessage(htmlText, isError = false, rawText = '') {
-            const chatBox = document.getElementById('chat-box');
-            const container = document.createElement('div');
-            container.className = 'msg-ia-container';
+        // 2. Sistema Avançado de Voz e Velocidade
+        function speakText(text) {
+            // Remove marcações markdown (como ** ou #) para a IA não ler os asteriscos em voz alta
+            const cleanText = text.replace(/[*#_`]/g, '');
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            
+            // Aplica a velocidade selecionada no menu
+            utterance.rate = parseFloat(speedSelect.value);
+            utterance.lang = 'pt-BR';
+            
+            // Busca uma voz feminina (depende das vozes instaladas no OS do usuário)
+            const voices = speechSynthesis.getVoices();
+            const femaleVoice = voices.find(v => v.lang.includes('pt') && (v.name.includes('Female') || v.name.includes('Maria') || v.name.includes('Google')));
+            if(femaleVoice) utterance.voice = femaleVoice;
 
-            const msgDiv = document.createElement('div');
-            msgDiv.className = isError ? 'msg-ia p-4 text-sm border-l-2 border-red-500 bg-red-900/20' : 'msg-ia p-4 text-sm';
-            msgDiv.innerHTML = marked.parse(htmlText);
-            container.appendChild(msgDiv);
+            speechSynthesis.speak(utterance);
+        }
 
-            if (!isError) {
-                const actionDiv = document.createElement('div');
-                actionDiv.className = 'flex gap-4 mt-2 ml-1';
-                
-                const btnOuvir = document.createElement('span');
-                btnOuvir.className = 'btn-action';
-                btnOuvir.innerHTML = '🔊 Ouvir';
-                btnOuvir.onclick = () => ouvirTexto(rawText);
-                
-                const btnObsidian = document.createElement('span');
-                btnObsidian.className = 'btn-action';
-                btnObsidian.innerHTML = '💎 Salvar no Obsidian';
-                btnObsidian.onclick = () => salvarNoObsidian(rawText);
-
-                actionDiv.appendChild(btnOuvir);
-                actionDiv.appendChild(btnObsidian);
-                container.appendChild(actionDiv);
+        // 3. Modo Live (Microfone e Câmera)
+        liveBtn.addEventListener('click', async () => {
+            if (!mediaStream) {
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    liveIndicator.classList.replace('bg-red-900', 'bg-green-500');
+                    liveBtn.classList.add('border-green-500');
+                    alert("Acesso concedido. Modo Live Multimodal ativado.");
+                    // Lógica para enviar o stream para análise da IA iria aqui
+                } catch (err) {
+                    alert("Erro ou permissão negada para Câmera/Microfone: " + err);
+                }
+            } else {
+                // Desligar
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+                liveIndicator.classList.replace('bg-green-500', 'bg-red-900');
+                liveBtn.classList.remove('border-green-500');
             }
+        });
 
-            chatBox.appendChild(container);
-            chatBox.scrollTop = chatBox.scrollHeight;
+        // 4. Modo Picture-in-Picture (Janela Flutuante Document PiP API)
+        pipBtn.addEventListener('click', async () => {
+            if (!('documentPictureInPicture' in window)) {
+                alert("Seu navegador não suporta a API de Document Picture-in-Picture.");
+                return;
+            }
+            try {
+                const pipWindow = await window.documentPictureInPicture.requestWindow({
+                    width: 400,
+                    height: 600,
+                });
+                // Copia o estilo e o chat atual para a janela flutuante
+                const styles = Array.from(document.styleSheets).map(styleSheet => {
+                    try { return Array.from(styleSheet.cssRules).map(rule => rule.cssText).join(''); } catch(e) { return ''; }
+                }).join('\n');
+                
+                const styleEl = pipWindow.document.createElement('style');
+                styleEl.textContent = styles;
+                pipWindow.document.head.appendChild(styleEl);
+                pipWindow.document.body.className = "bg-[#0d0d0f] text-white p-4";
+                pipWindow.document.body.innerHTML = "<h2 class='text-orange-500 mb-4 font-bold'>A.T.H.E.N.A. Live</h2>" + chatBox.innerHTML;
+            } catch (err) {
+                console.error("Erro ao iniciar PiP:", err);
+            }
+        });
+
+        // 5. Salvar no Obsidian (Geração de .md)
+        function saveToObsidian(text) {
+            const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `Athena_Nota_${new Date().toISOString().slice(0,10)}.md`;
+            a.click();
         }
     </script>
 </body>

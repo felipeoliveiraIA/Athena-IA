@@ -3,107 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATHENA IA v5.2</title>
+    <title>A.T.H.E.N.A. OS v5.2 Prime</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        body { background-color: #0d0d0f; color: #e2e8f0; font-family: 'Inter', sans-serif; }
-        .sidebar { background-color: #080809; border-right: 1px solid #1f1f22; }
+        body { background-color: #0d0d0f; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+        .sidebar { background-color: #111114; border-right: 1px solid #1f1f22; }
         .accent-orange { color: #ff9800; }
         .bg-orange { background-color: #ff9800; }
         .chat-container { scroll-behavior: smooth; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background-color: #333; border-radius: 10px; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background-color: #27272a; border-radius: 10px; }
         input[type="file"] { display: none; }
         
-        /* Widget da Câmera Flutuante Ajustado */
+        /* Câmera Flutuante (Draggable & PiP) */
         #camera-widget {
-            position: absolute; top: 80px; right: 20px; width: 280px;
+            position: absolute; top: 80px; right: 20px; width: 260px;
             background: #000; border: 2px solid #ff9800; border-radius: 12px;
             overflow: hidden; cursor: grab; z-index: 50; display: none;
             box-shadow: 0 10px 25px rgba(0,0,0,0.8);
         }
         #camera-widget:active { cursor: grabbing; }
         video { width: 100%; height: auto; transform: scaleX(-1); }
-        
-        /* Controles Internos da Câmera */
         .camera-controls {
             position: absolute; bottom: 0; left: 0; right: 0;
-            background: rgba(0, 0, 0, 0.7); display: flex;
-            justify-content: space-between; align-items: center; padding: 8px;
+            background: rgba(0, 0, 0, 0.8); display: flex;
+            justify-content: space-between; align-items: center; padding: 6px 8px;
         }
         
-        /* Balão Fantasma (Live) */
-        .ghost-bubble { opacity: 0.7; border: 1px dashed #ff9800; }
+        /* Balão Fantasma (Live Ghost Bubble) */
+        .ghost-bubble { opacity: 0.8; border: 1px dashed #ff9800; }
+
+        /* Estilo da Lista de Conversas da Barra Lateral */
+        .chat-item {
+            border: 1px solid #1f1f22; background: #161619;
+            transition: all 0.2s ease; cursor: pointer;
+        }
+        .chat-item:hover { border-color: #ff9800; }
+        .chat-item.active { border-color: #ff9800; background: #1f1a14; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
 
-    <!-- Widget da Câmera -->
+    <!-- Modal de Memória e Perfil (Personalização) -->
+    <div id="memory-modal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-[#141417] border border-gray-700 w-full max-w-2xl rounded-2xl p-6 shadow-2xl flex flex-col gap-4">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                <h2 class="text-lg font-bold flex items-center gap-2 text-white">
+                    🧠 Memória e Perfil <span class="text-xs bg-orange text-black px-2 py-0.5 rounded font-semibold">Personalização Aditiva</span>
+                </h2>
+                <button onclick="toggleMemoryModal(false)" class="text-gray-400 hover:text-white font-bold text-xl">&times;</button>
+            </div>
+            
+            <p class="text-xs text-gray-400">
+                Escreva quem você é, seus interesses (ex: investimentos FIRE, vibe-coding, neurobiologia), estilo de aprendizado e como gosta dos seus projetos. O sistema **só acumula** dados sem nunca apagar seus registros históricos.
+            </p>
+
+            <textarea id="user-profile-text" rows="8" class="w-full bg-[#0d0d0f] border border-gray-700 rounded-xl p-3 text-sm text-gray-200 outline-none focus:border-[#ff9800] transition" placeholder="Escreva sobre você aqui..."></textarea>
+
+            <div class="flex items-center justify-between pt-2">
+                <button id="learn-btn" onclick="aiLearnFromChat()" class="bg-gray-800 hover:bg-gray-700 text-orange-400 border border-orange-500/40 px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition">
+                    ⚡ IA Aprender com a Conversa (Adicionar)
+                </button>
+                
+                <div class="flex gap-2">
+                    <button onclick="toggleMemoryModal(false)" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg text-xs font-semibold transition">
+                        Fechar
+                    </button>
+                    <button onclick="saveUserProfile()" class="bg-orange hover:bg-orange-600 text-black px-5 py-2 rounded-lg text-xs font-bold transition shadow-lg">
+                        Salvar Memória
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Widget Flutuante de Vídeo Live -->
     <div id="camera-widget">
-        <div class="bg-gray-900 text-xs text-orange-500 p-1 flex justify-between items-center font-bold tracking-widest cursor-move">
-            <span>LIVE FEED</span>
+        <div class="bg-gray-900 text-[10px] text-orange-500 p-1.5 flex justify-between items-center font-bold tracking-widest cursor-move">
+            <span>A.T.H.E.N.A. LIVE</span>
             <div id="mic-indicator" class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]"></div>
         </div>
         <video id="user-video" autoplay muted></video>
         <div class="camera-controls">
-            <button id="toggle-hold-btn" class="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-white transition" title="Manter a IA escutando sem responder automaticamente">
+            <button id="toggle-hold-btn" class="text-[11px] px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-white transition">
                 ⏸️ Pausar Auto-Envio
             </button>
-            <button id="manual-send-btn" class="text-xs px-3 py-1 bg-orange text-black font-bold rounded hidden transition shadow-[0_0_8px_#ff9800]">
+            <button id="manual-send-btn" class="text-[11px] px-2 py-1 bg-orange text-black font-bold rounded hidden transition shadow-[0_0_8px_#ff9800]">
                 Transmitir
             </button>
         </div>
     </div>
 
-    <!-- Sidebar Lateral -->
-    <aside class="sidebar w-64 flex flex-col p-4 relative z-10">
-        <div class="flex items-center gap-2 mb-6">
-            <span class="text-2xl">🦉</span>
-            <h1 class="text-xl font-bold tracking-wider">ATHENA IA <span class="text-xs bg-orange text-black px-1 rounded">v5.2</span></h1>
-        </div>
-        
-        <button class="bg-orange text-black font-bold py-2 px-4 rounded mb-6 hover:bg-orange-600 transition shadow-lg">
-            + Nova Sessão
-        </button>
-
-        <div class="mb-6">
-            <h3 class="text-xs text-gray-500 mb-2 uppercase tracking-wide">Nível Atual</h3>
-            <div class="bg-[#1a1a1c] border border-gray-700 p-2 rounded text-sm text-center text-orange-500 font-bold tracking-widest uppercase">
-                Veterano
+    <!-- Barra Lateral (Sidebar Estilo Imagem 4) -->
+    <aside class="sidebar w-72 flex flex-col p-4 relative z-10">
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🦉</span>
+                <div>
+                    <h1 class="text-base font-bold tracking-wider leading-none">A.T.H.E.N.A. OS</h1>
+                    <span class="text-[10px] text-orange-500 font-bold tracking-widest uppercase">v5.2 Prime</span>
+                </div>
             </div>
         </div>
+        
+        <!-- Botão Memória & Perfil acima de Nova Conversa -->
+        <button onclick="toggleMemoryModal(true)" class="w-full bg-[#1c1c20] hover:bg-gray-800 border border-gray-700 text-gray-200 text-xs font-semibold py-2.5 px-3 rounded-xl mb-2.5 flex items-center justify-center gap-2 transition shadow-sm">
+            🧠 Memória & Perfil (Aprender)
+        </button>
 
-        <div class="mb-4">
-            <h3 class="text-xs text-gray-500 mb-2 uppercase tracking-wide">Integrações:</h3>
-            <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-orange-400 transition" title="Estrutura médica: Etiologia, Fisiopatologia, Critérios e Conduta">
-                <input type="checkbox" id="modo-semiologico" class="rounded bg-gray-800 border-gray-600 text-orange-500 focus:ring-orange-500">
-                🩺 Modo Semiológico
-            </label>
+        <!-- Botão Nova Conversa -->
+        <button onclick="createNewSession()" class="w-full bg-orange text-black font-bold py-3 px-4 rounded-xl mb-6 hover:bg-orange-600 transition shadow-lg flex items-center justify-center gap-2 text-sm">
+            + Nova Conversa
+        </button>
+
+        <div class="text-[11px] text-gray-500 font-semibold uppercase tracking-wider mb-2">Conversas Salvas:</div>
+        
+        <!-- Lista de Chats -->
+        <div id="chat-list" class="flex-1 overflow-y-auto space-y-2 pr-1">
+            <!-- Gerado dinamicamente com localStorage -->
         </div>
 
-        <div class="mt-auto">
-            <h3 class="text-xs text-gray-500 mb-2 uppercase tracking-wide">Retenção de Chat:</h3>
-            <select id="chat-retention" class="w-full bg-[#1a1a1c] border border-gray-700 text-white text-sm rounded p-2 outline-none hover:border-gray-500 transition cursor-pointer">
-                <option value="1_month" selected>Excluir em 1 Mês</option>
+        <!-- Retenção do Chat Atual -->
+        <div class="mt-4 pt-4 border-t border-gray-800">
+            <label class="text-[11px] text-gray-400 block mb-1.5 uppercase font-semibold">Retenção Desta Conversa:</label>
+            <select id="chat-retention" onchange="updateCurrentChatRetention()" class="w-full bg-[#18181b] border border-gray-700 text-gray-200 text-xs rounded-lg p-2 outline-none hover:border-gray-600 transition cursor-pointer">
+                <option value="1_month">Excluir em 1 Mês</option>
                 <option value="2_months">Excluir em 2 Meses</option>
+                <option value="3_months">Excluir em 3 Meses</option>
                 <option value="6_months">Excluir em 6 Meses</option>
-                <option value="fixed">📌 Fixar Permanentemente</option>
+                <option value="1_year">Excluir em 1 Ano</option>
+                <option value="2_years">Excluir em 2 Anos</option>
+                <option value="5_years">Excluir em 5 Anos</option>
+                <option value="fixed" selected>📌 Fixar Permanentemente</option>
             </select>
         </div>
     </aside>
 
-    <!-- Área Principal -->
-    <main class="flex-1 flex flex-col relative">
-        <header class="h-16 border-b border-[#1f1f22] bg-[#0d0d0f] flex items-center justify-between px-6 z-10">
-            <select id="model-select" class="bg-[#1a1a1c] border border-gray-700 text-white rounded p-1 outline-none text-sm cursor-pointer">
-                <option value="qwen">🧠 Nuvem (Qwen Coder 32B)</option>
-                <option value="gemini">🧠 Nuvem (Gemini)</option>
-                <option value="local">🖥️ HD Local (LM Studio)</option>
-            </select>
+    <!-- Área Principal de Conversa -->
+    <main class="flex-1 flex flex-col relative bg-[#0d0d0f]">
+        <header class="h-16 border-b border-[#1f1f22] bg-[#111114] flex items-center justify-between px-6 z-10">
+            <div class="flex items-center gap-4">
+                <select id="model-select" class="bg-[#18181b] border border-gray-700 text-white rounded-lg px-3 py-1.5 outline-none text-xs font-semibold cursor-pointer">
+                    <option value="qwen">🧠 Nuvem (Qwen 2.5 Coder 32B Free)</option>
+                    <option value="gemini">🧠 Nuvem (Gemini 2.0 Flash Lite Free)</option>
+                    <option value="local">🖥️ HD Local (LM Studio)</option>
+                </select>
+                <span id="session-title-header" class="text-xs text-gray-400 font-medium truncate max-w-xs">Sessão Atual</span>
+            </div>
 
             <div class="flex items-center gap-3">
-                <select id="speed-select" class="bg-[#1a1a1c] border border-gray-700 text-white rounded p-1 text-sm outline-none cursor-pointer">
+                <select id="speed-select" class="bg-[#18181b] border border-gray-700 text-white rounded-lg px-2 py-1.5 text-xs outline-none cursor-pointer">
                     <option value="0.75">0.75x</option>
                     <option value="1.0" selected>1.0x</option>
                     <option value="1.25">1.25x</option>
@@ -113,94 +163,197 @@
                     <option value="4.0">4.0x</option>
                 </select>
 
-                <button id="live-btn" class="flex items-center gap-2 bg-[#1a1a1c] hover:bg-gray-800 border border-gray-700 px-3 py-1 text-sm rounded transition cursor-pointer">
+                <button id="live-btn" class="flex items-center gap-1.5 bg-[#18181b] hover:bg-gray-800 border border-gray-700 px-3 py-1.5 text-xs rounded-lg transition cursor-pointer">
                     🎤 Live
                 </button>
-                <div id="live-indicator" class="w-3 h-3 rounded-full bg-red-900 transition-colors shadow-sm"></div>
-                <button id="pip-btn" class="bg-[#1a1a1c] hover:bg-gray-800 border border-gray-700 px-3 py-1 text-sm rounded transition cursor-pointer" title="Destacar Câmera">PiP ⧉</button>
+                <div id="live-indicator" class="w-2.5 h-2.5 rounded-full bg-red-900 transition-colors shadow-sm"></div>
+                <button id="pip-btn" class="bg-[#18181b] hover:bg-gray-800 border border-gray-700 px-3 py-1.5 text-xs rounded-lg transition cursor-pointer" title="Destacar Câmera em Janela Flutuante">PiP ⧉</button>
             </div>
         </header>
 
-        <div id="chat-box" class="chat-container flex-1 overflow-y-auto p-6 space-y-6"></div>
+        <!-- Histórico do Chat -->
+        <div id="chat-box" class="chat-container flex-1 overflow-y-auto p-6 space-y-5"></div>
 
-        <div class="p-4 bg-[#0d0d0f] relative z-20">
-            <div class="flex items-end gap-2 bg-[#1a1a1c] border border-gray-700 rounded-xl p-2 relative focus-within:border-[#ff9800] transition-colors">
-                <label class="p-2 text-gray-400 hover:text-white transition cursor-pointer">
+        <!-- Barra Inferior Inspirada na 4ª Imagem (WhatsApp / Vibe Style) -->
+        <div class="p-4 bg-[#111114] border-t border-[#1f1f22] relative z-20">
+            <div class="flex items-center gap-3 bg-[#18181b] border border-gray-700 rounded-2xl px-4 py-2 relative focus-within:border-[#ff9800] transition-colors">
+                <label class="text-gray-400 hover:text-white transition cursor-pointer text-lg">
                     📎 <input type="file" id="file-upload" accept="image/*,.pdf,.doc,.txt">
                 </label>
-                <textarea id="user-input" rows="1" class="w-full bg-transparent text-white outline-none resize-none max-h-32 py-2" placeholder="Mensagem (Shift+Enter para pular linha)..."></textarea>
-                <button id="send-btn" class="bg-orange text-black font-bold px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-orange-600 transition shadow-md">
-                    Enviar
+                <textarea id="user-input" rows="1" class="w-full bg-transparent text-white text-sm outline-none resize-none max-h-32 py-2" placeholder="Digite sua mensagem ou comando (Shift+Enter para pular linha)..."></textarea>
+                
+                <!-- Botão Estiloso Quadrado Laranja (Estilo Imagem 4) -->
+                <button id="send-btn" class="bg-orange hover:bg-orange-600 text-black w-10 h-10 rounded-xl flex items-center justify-center font-bold transition shadow-lg shrink-0">
+                    <svg class="w-5 h-5 fill-current transform translate-x-0.5" viewBox="0 0 24 24">
+                        <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"></path>
+                    </svg>
                 </button>
             </div>
-            <div id="attachment-preview" class="hidden mt-2 text-xs text-orange-400 ml-10"></div>
+            <div id="attachment-preview" class="hidden mt-1 text-xs text-orange-400 ml-10 font-semibold"></div>
         </div>
     </main>
 
     <script>
-        const chatBox = document.getElementById('chat-box');
+        // ======= GESTÃO DE SESSÕES E ARMAZENAMENTO LOCAL (LOCALSTORAGE) =======
+        const STORAGE_KEY = 'athena_chats_v5_2';
+        const PROFILE_KEY = 'athena_user_profile';
+        let chats = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        let currentChatId = null;
+
+        // Inicia ou limpa conversas expiradas ao abrir a página
+        window.addEventListener('DOMContentLoaded', () => {
+            cleanExpiredChats();
+            loadUserProfile();
+            if (chats.length === 0) {
+                createNewSession("Nossa 1ª conversa (Local)");
+            } else {
+                selectSession(chats[0].id);
+            }
+        });
+
+        function cleanExpiredChats() {
+            const now = Date.now();
+            chats = chats.filter(chat => {
+                if (chat.retention === 'fixed') return true;
+                const daysMap = { '1_month': 30, '2_months': 60, '3_months': 90, '6_months': 180, '1_year': 365, '2_years': 730, '5_years': 1825 };
+                const days = daysMap[chat.retention] || 30;
+                const expirationDate = chat.createdAt + (days * 24 * 60 * 60 * 1000);
+                return now < expirationDate;
+            });
+            saveChatsToStorage();
+        }
+
+        function saveChatsToStorage() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+            renderChatList();
+        }
+
+        function createNewSession(customTitle = null) {
+            const newId = 'chat_' + Date.now();
+            const newTitle = customTitle || `Sessão #${chats.length + 1}`;
+            const newChat = {
+                id: newId,
+                title: newTitle,
+                retention: 'fixed',
+                createdAt: Date.now(),
+                messages: []
+            };
+            chats.unshift(newChat);
+            saveChatsToStorage();
+            selectSession(newId);
+        }
+
+        function selectSession(chatId) {
+            currentChatId = chatId;
+            const chat = chats.find(c => c.id === chatId);
+            if (!chat) return;
+
+            document.getElementById('session-title-header').innerText = chat.title;
+            document.getElementById('chat-retention').value = chat.retention || 'fixed';
+            renderMessages();
+            renderChatList();
+        }
+
+        function updateCurrentChatRetention() {
+            const chat = chats.find(c => c.id === currentChatId);
+            if (chat) {
+                chat.retention = document.getElementById('chat-retention').value;
+                saveChatsToStorage();
+            }
+        }
+
+        function renderChatList() {
+            const listEl = document.getElementById('chat-list');
+            listEl.innerHTML = '';
+            chats.forEach(chat => {
+                const isActive = chat.id === currentChatId;
+                const item = document.createElement('div');
+                item.className = `chat-item p-3 rounded-xl flex items-center justify-between text-xs ${isActive ? 'active' : ''}`;
+                item.onclick = () => selectSession(chat.id);
+                item.innerHTML = `
+                    <div class="truncate font-medium text-gray-300 w-44">${chat.title}</div>
+                    <span class="text-[10px] text-gray-500">${chat.retention === 'fixed' ? '📌' : '⏱️'}</span>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        function renderMessages() {
+            const chat = chats.find(c => c.id === currentChatId);
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML = '';
+            if (!chat) return;
+
+            chat.messages.forEach((msg, idx) => {
+                appendMessageDOM(msg.sender, msg.text, msg.type, idx);
+            });
+            scrollToBottom();
+        }
+
+        // ======= MEMÓRIA E PERFIL ADITIVO =======
+        function toggleMemoryModal(show) {
+            const modal = document.getElementById('memory-modal');
+            modal.classList.toggle('hidden', !show);
+            if (show) loadUserProfile();
+        }
+
+        function loadUserProfile() {
+            const saved = localStorage.getItem(PROFILE_KEY) || '';
+            document.getElementById('user-profile-text').value = saved;
+        }
+
+        function saveUserProfile() {
+            const text = document.getElementById('user-profile-text').value.trim();
+            localStorage.setItem(PROFILE_KEY, text);
+            toggleMemoryModal(false);
+        }
+
+        async function aiLearnFromChat() {
+            const chat = chats.find(c => c.id === currentChatId);
+            if (!chat || chat.messages.length === 0) {
+                alert("Converse com a IA primeiro para que ela possa extrair aprendizados da sessão.");
+                return;
+            }
+            const btn = document.getElementById('learn-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "⏳ Aprendendo...";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/learn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        currentProfile: localStorage.getItem(PROFILE_KEY) || '',
+                        messages: chat.messages.map(m => ({ role: m.type === 'user' ? 'user' : 'assistant', content: m.text })),
+                        model: document.getElementById('model-select').value
+                    })
+                });
+                const data = await response.json();
+                if (data.new_insights) {
+                    const textarea = document.getElementById('user-profile-text');
+                    const currentVal = textarea.value.trim();
+                    // Injeção estritamente aditiva (nunca sobrescreve o passado)
+                    textarea.value = currentVal ? `${currentVal}\n\n[+ Aprendizado IA]: ${data.new_insights}` : `[+ Aprendizado IA]: ${data.new_insights}`;
+                    localStorage.setItem(PROFILE_KEY, textarea.value);
+                    alert("Novos aprendizados adicionados com sucesso ao seu perfil!");
+                }
+            } catch (err) {
+                alert("Falha ao analisar histórico no momento.");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // ======= ENVIO DE MENSAGEM & REENVIAR (RETRY) =======
         const userInput = document.getElementById('user-input');
-        const sendBtn = document.getElementById('send-btn');
-        const liveBtn = document.getElementById('live-btn');
-        const cameraWidget = document.getElementById('camera-widget');
-        const userVideo = document.getElementById('user-video');
-        const pipBtn = document.getElementById('pip-btn');
-        
-        // Controles de Live
-        const toggleHoldBtn = document.getElementById('toggle-hold-btn');
-        const manualSendBtn = document.getElementById('manual-send-btn');
-        const micIndicator = document.getElementById('mic-indicator');
-        
-        let mediaStream = null;
-        let recognition = null;
-        let isLiveActive = false;
-        let isHoldMode = false;
-        let autoSendTimer = null;
-        let currentLiveTranscript = "";
-        let liveGhostBubble = null;
-        
         let attachedFileBase64 = null;
-        let currentSpeakingBtn = null; // Rastrear botão de áudio ativo
+        let lastAiMessageText = "";
 
-        // PiP (Picture in Picture)
-        pipBtn.addEventListener('click', async () => {
-            if (document.pictureInPictureElement) {
-                await document.exitPictureInPicture();
-            } else if (userVideo.srcObject) {
-                await userVideo.requestPictureInPicture();
-            } else {
-                alert("Ative o modo Live primeiro para destacar a câmera.");
-            }
-        });
-
-        // Alternar Modo Pause/Hold no Live
-        toggleHoldBtn.addEventListener('click', () => {
-            isHoldMode = !isHoldMode;
-            if (isHoldMode) {
-                toggleHoldBtn.innerText = "▶️ Retomar Auto-Envio";
-                toggleHoldBtn.classList.replace('bg-gray-700', 'bg-orange-600');
-                manualSendBtn.classList.remove('hidden');
-                clearTimeout(autoSendTimer); // Cancela qualquer envio automático pendente
-            } else {
-                toggleHoldBtn.innerText = "⏸️ Pausar Auto-Envio";
-                toggleHoldBtn.classList.replace('bg-orange-600', 'bg-gray-700');
-                manualSendBtn.classList.add('hidden');
-            }
-        });
-
-        // Botão Transmitir (Manual)
-        manualSendBtn.addEventListener('click', () => {
-            if(currentLiveTranscript.trim() !== "") {
-                const text = currentLiveTranscript;
-                resetLiveState();
-                processSend(true, text);
-            }
-        });
-
-        // Anexos
         document.getElementById('file-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
-            if(!file) return;
+            if (!file) return;
             document.getElementById('attachment-preview').classList.remove('hidden');
             document.getElementById('attachment-preview').innerText = `Anexado: ${file.name}`;
             const reader = new FileReader();
@@ -211,247 +364,132 @@
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); processSend(false); }
         });
-        userInput.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px'; });
-        sendBtn.addEventListener('click', () => processSend(false));
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+        document.getElementById('send-btn').addEventListener('click', () => processSend(false));
 
         async function processSend(isLiveMode = false, overrideText = null) {
             const text = overrideText || userInput.value.trim();
             if (!text && !attachedFileBase64) return;
 
-            appendMessage('Você', text + (attachedFileBase64 ? ' [Arquivo]' : ''), 'user');
+            const chat = chats.find(c => c.id === currentChatId);
+            if (!chat) return;
+
+            // Se a sessão ainda tiver o título padrão, usa o primeiro prompt como título
+            if (chat.messages.length === 0 && chat.title.startsWith('Sessão #')) {
+                chat.title = text.substring(0, 24) + "...";
+                document.getElementById('session-title-header').innerText = chat.title;
+            }
+
+            const messageText = text + (attachedFileBase64 ? ' [Arquivo Anexado]' : '');
+            chat.messages.push({ sender: 'Você', text: messageText, type: 'user' });
+            saveChatsToStorage();
+            appendMessageDOM('Você', messageText, 'user', chat.messages.length - 1);
+
             userInput.value = '';
             userInput.style.height = 'auto';
             attachedFileBase64 = null;
             document.getElementById('attachment-preview').classList.add('hidden');
 
+            await sendToBackend(chat, messageText, isLiveMode);
+        }
+
+        async function sendToBackend(chat, textMessage, isLiveMode = false) {
             const loadingId = appendLoading();
+
+            // Histórico até antes da última resposta
+            const historyPayload = chat.messages.slice(0, -1).map(m => ({
+                role: m.type === 'user' ? 'user' : 'assistant',
+                content: m.text
+            }));
 
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        message: text,
-                        modoSemiologico: document.getElementById('modo-semiologico').checked,
-                        model: document.getElementById('model-select').value
+                    body: JSON.stringify({
+                        message: textMessage,
+                        model: document.getElementById('model-select').value,
+                        userProfile: localStorage.getItem(PROFILE_KEY) || '',
+                        history: historyPayload
                     })
                 });
-                
+
                 removeLoading(loadingId);
                 const data = await response.json();
-                
-                if(data.error) {
-                    appendMessage('⚠️ Erro de Conexão', data.error, 'error');
+
+                if (data.error) {
+                    appendMessageDOM('⚠️ Erro de Conexão', data.error, 'error');
                 } else {
-                    const msgDiv = appendMessage('🦉 ATHENA IA', data.reply, 'ai');
+                    lastAiMessageText = data.reply;
+                    chat.messages.push({ sender: 'A.T.H.E.N.A.', text: data.reply, type: 'ai' });
+                    saveChatsToStorage();
+                    const msgDiv = appendMessageDOM('A.T.H.E.N.A.', data.reply, 'ai', chat.messages.length - 1);
+                    
                     if (isLiveMode) {
-                        // Clica automaticamente no botão de ouvir para responder em voz
                         const audioBtn = msgDiv.querySelector('.audio-toggle-btn');
-                        if(audioBtn) toggleAudio(data.reply, audioBtn);
+                        if (audioBtn) toggleAudio(data.reply, audioBtn);
                     }
                 }
             } catch (error) {
                 removeLoading(loadingId);
-                appendMessage('⚠️ Erro de Rede', 'O servidor demorou a responder. Tente novamente.', 'error');
+                appendMessageDOM('⚠️ Erro de Rede', 'Servidor não acessível no momento. Tente clicar em Reenviar.', 'error');
             }
         }
 
-        // Lógica de Voz (Toggle Play/Stop)
-        document.getElementById('speed-select').addEventListener('change', () => {
-            if(window.speechSynthesis.speaking && currentSpeakingBtn) {
-                const text = currentSpeakingBtn.getAttribute('data-text');
-                window.speechSynthesis.cancel(); 
-                setTimeout(() => { 
-                    currentSpeakingBtn.innerHTML = "⏹️ Parar";
-                    executeSpeech(text); 
-                }, 250); 
-            }
-        });
+        // Função de Reenvio ao clicar no botão "🔄 Reenviar"
+        async function retryMessage(msgIndex) {
+            const chat = chats.find(c => c.id === currentChatId);
+            if (!chat || !chat.messages[msgIndex]) return;
 
-        function toggleAudio(text, btnElement) {
-            if (window.speechSynthesis.speaking) {
-                window.speechSynthesis.cancel();
-                // Se clicou no mesmo botão, apenas para e reseta
-                if (currentSpeakingBtn === btnElement) {
-                    resetAllAudioButtons();
-                    if(isLiveActive && recognition) {
-                        setTimeout(() => recognition.start(), 500); // Retoma o mic
-                    }
-                    return;
-                }
+            const userMsgText = chat.messages[msgIndex].text;
+            // Se houver uma mensagem de erro ou de IA imediatamente logo após, remove do histórico anterior
+            if (chat.messages[msgIndex + 1] && chat.messages[msgIndex + 1].type !== 'user') {
+                chat.messages.splice(msgIndex + 1, 1);
+                saveChatsToStorage();
+                renderMessages();
             }
-            
-            resetAllAudioButtons();
-            currentSpeakingBtn = btnElement;
-            btnElement.innerHTML = "⏹️ Parar";
-            btnElement.classList.replace('bg-gray-800', 'bg-orange-600');
-            btnElement.classList.replace('text-gray-300', 'text-white');
-            
-            // Pausa o reconhecimento do Live para não escutar a própria voz
-            if(isLiveActive && recognition) {
-                try { recognition.abort(); } catch(e){}
-                micIndicator.classList.replace('bg-green-500', 'bg-gray-600');
-            }
-
-            executeSpeech(text);
+            await sendToBackend(chat, userMsgText, false);
         }
 
-        function executeSpeech(text) {
-            const cleanText = text.replace(/[*#_`]/g, ''); 
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.rate = parseFloat(document.getElementById('speed-select').value);
-            
-            const isSpanish = /\b(el|la|los|las|y|en|un|una|del)\b/i.test(cleanText.substring(0, 50));
-            utterance.lang = isSpanish ? 'es-ES' : 'pt-BR';
-            
-            const voices = window.speechSynthesis.getVoices();
-            let selectedVoice = voices.find(v => v.lang.includes(isSpanish ? 'es' : 'pt') && 
-                (v.name.includes('Francisca') || v.name.includes('Luciana') || v.name.includes('Helena') || v.name.includes('Female')));
-            if(selectedVoice) utterance.voice = selectedVoice;
-
-            utterance.onend = () => {
-                resetAllAudioButtons();
-                // Retoma o microfone quando terminar de falar
-                if(isLiveActive && recognition) {
-                    micIndicator.classList.replace('bg-gray-600', 'bg-green-500');
-                    try { recognition.start(); } catch(e){}
-                }
-            };
-
-            window.speechSynthesis.speak(utterance);
-        }
-
-        function resetAllAudioButtons() {
-            document.querySelectorAll('.audio-toggle-btn').forEach(btn => {
-                btn.innerHTML = "🔊 Ouvir";
-                btn.classList.replace('bg-orange-600', 'bg-gray-800');
-                btn.classList.replace('text-white', 'text-gray-300');
-            });
-            currentSpeakingBtn = null;
-        }
-
-        // Modo Live (Mic/Cam e Ghost Bubble)
-        liveBtn.addEventListener('click', async () => {
-            if (!isLiveActive) {
-                const permission = confirm("ATHENA IA solicita acesso à sua Câmera e Microfone para o Modo Live. Confirmar?");
-                if(!permission) return;
-
-                try {
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                    userVideo.srcObject = mediaStream;
-                    cameraWidget.style.display = 'block';
-                    
-                    document.getElementById('live-indicator').classList.replace('bg-red-900', 'bg-green-500');
-                    liveBtn.classList.add('border-green-500', 'text-green-400');
-                    isLiveActive = true;
-                    
-                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                    if (SpeechRecognition) {
-                        recognition = new SpeechRecognition();
-                        recognition.lang = 'pt-BR';
-                        recognition.continuous = true;
-                        recognition.interimResults = true;
-                        
-                        recognition.onresult = (event) => {
-                            clearTimeout(autoSendTimer);
-                            
-                            let interim = '';
-                            let final = '';
-                            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                                if (event.results[i].isFinal) final += event.results[i][0].transcript;
-                                else interim += event.results[i][0].transcript;
-                            }
-                            
-                            currentLiveTranscript += final;
-                            const displayTxt = currentLiveTranscript + interim;
-                            
-                            if(displayTxt.trim().length > 0) {
-                                if(!liveGhostBubble) createGhostBubble();
-                                liveGhostBubble.innerHTML = `<strong>Escutando:</strong><br>${displayTxt}`;
-                                scrollToBottom();
-                            }
-                            
-                            // Lógica de Envio Automático por Pausa (3.5s de silêncio)
-                            if(!isHoldMode && currentLiveTranscript.trim() !== "") {
-                                autoSendTimer = setTimeout(() => {
-                                    const text = currentLiveTranscript;
-                                    resetLiveState();
-                                    processSend(true, text);
-                                }, 3500);
-                            }
-                        };
-                        
-                        recognition.onend = () => { 
-                            // Reinicia se não estivermos falando (TTS ativo)
-                            if(isLiveActive && !window.speechSynthesis.speaking) recognition.start(); 
-                        };
-                        recognition.start();
-                    }
-                } catch (err) { alert("Permissão negada ou hardware não encontrado."); }
-            } else {
-                mediaStream.getTracks().forEach(track => track.stop());
-                cameraWidget.style.display = 'none';
-                document.getElementById('live-indicator').classList.replace('bg-green-500', 'bg-red-900');
-                liveBtn.classList.remove('border-green-500', 'text-green-400');
-                isLiveActive = false;
-                if(recognition) { recognition.onend = null; recognition.abort(); }
-                resetLiveState();
-            }
-        });
-
-        function createGhostBubble() {
-            liveGhostBubble = document.createElement('div');
-            liveGhostBubble.className = 'ml-auto bg-orange text-black p-3 rounded-lg max-w-[75%] ghost-bubble italic transition-all';
-            chatBox.appendChild(liveGhostBubble);
-        }
-
-        function resetLiveState() {
-            clearTimeout(autoSendTimer);
-            currentLiveTranscript = "";
-            if(liveGhostBubble) { liveGhostBubble.remove(); liveGhostBubble = null; }
-        }
-
-        // Arrastar Webcam
-        let isDragging = false, dragStartX, dragStartY;
-        cameraWidget.addEventListener('mousedown', (e) => {
-            if(e.target.tagName !== 'BUTTON') { // Não arrastar se clicar no botão
-                isDragging = true; dragStartX = e.clientX - cameraWidget.offsetLeft; dragStartY = e.clientY - cameraWidget.offsetTop;
-            }
-        });
-        window.addEventListener('mousemove', (e) => {
-            if(isDragging) { cameraWidget.style.left = (e.clientX - dragStartX) + 'px'; cameraWidget.style.top = (e.clientY - dragStartY) + 'px'; }
-        });
-        window.addEventListener('mouseup', () => isDragging = false);
-
-        function appendMessage(sender, text, type) {
+        function appendMessageDOM(sender, text, type, index = 0) {
+            const chatBox = document.getElementById('chat-box');
             const msgDiv = document.createElement('div');
-            
+
             if (type === 'user') {
-                msgDiv.className = 'ml-auto bg-orange text-black p-3 rounded-lg max-w-[75%] shadow-md leading-relaxed';
-                msgDiv.innerHTML = `<strong>${sender}:</strong><br>${text.replace(/\n/g, '<br>')}`;
+                msgDiv.className = 'ml-auto bg-orange text-black p-3.5 rounded-2xl max-w-[78%] shadow-md leading-relaxed text-sm';
+                msgDiv.innerHTML = `
+                    <div class="flex justify-between items-center mb-1 border-b border-black/10 pb-1">
+                        <strong class="font-bold tracking-wide">${sender}:</strong>
+                        <button onclick="retryMessage(${index})" title="Reenviar com o modelo atual selecionado" class="text-xs bg-black/20 hover:bg-black/30 text-black px-2 py-0.5 rounded font-bold transition">
+                            🔄 Reenviar
+                        </button>
+                    </div>
+                    <div>${text.replace(/\n/g, '<br>')}</div>`;
             } else if (type === 'error') {
-                msgDiv.className = 'bg-red-900/30 border border-red-800 text-red-200 p-4 rounded-lg w-full shadow-md';
+                msgDiv.className = 'bg-red-950/40 border border-red-700/60 text-red-200 p-4 rounded-xl w-full text-xs shadow-md';
                 msgDiv.innerHTML = `<strong>${sender}:</strong><br>${text}`;
             } else {
-                msgDiv.className = 'mr-auto bg-[#1a1a1c] border border-gray-800 text-gray-200 p-5 rounded-lg max-w-[85%] shadow-lg leading-relaxed';
-                
+                msgDiv.className = 'mr-auto bg-[#161619] border border-gray-800 text-gray-200 p-5 rounded-2xl max-w-[85%] shadow-lg leading-relaxed text-sm';
                 const safeTextForAudio = text.replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, " ");
                 const safeTextForCopy = text.replace(/"/g, '&quot;').replace(/'/g, "\\'");
-
                 const htmlContent = marked.parse(text);
+
                 msgDiv.innerHTML = `
-                    <div class="flex justify-between items-center mb-3 border-b border-gray-800 pb-2">
-                        <strong class="text-orange-400 tracking-wide text-sm">${sender}</strong>
-                        <button data-text="${safeTextForAudio}" onclick="toggleAudio(this.getAttribute('data-text'), this)" class="audio-toggle-btn text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1 rounded shadow transition">
+                    <div class="flex justify-between items-center mb-3 border-b border-gray-800/80 pb-2">
+                        <strong class="text-orange-400 tracking-wide text-xs font-bold uppercase">${sender}</strong>
+                        <button data-text="${safeTextForAudio}" onclick="toggleAudio(this.getAttribute('data-text'), this)" class="audio-toggle-btn text-[11px] bg-[#1f1f22] hover:bg-gray-700 text-gray-300 px-3 py-1 rounded-lg shadow transition font-semibold">
                             🔊 Ouvir
                         </button>
                     </div>
-                    <div class="prose prose-invert max-w-none">${htmlContent}</div>
-                    <div class="flex gap-2 mt-4 pt-3 border-t border-gray-800">
-                        <button onclick="saveToObsidian(this.getAttribute('data-raw'))" data-raw="${safeTextForCopy}" class="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded text-gray-300 flex gap-2 items-center transition">
-                            🗃️ Salvar Obsidian
+                    <div class="prose prose-invert max-w-none text-sm">${htmlContent}</div>
+                    <div class="flex gap-2 mt-4 pt-3 border-t border-gray-800/80">
+                        <button onclick="saveToObsidian(this.getAttribute('data-raw'))" data-raw="${safeTextForCopy}" class="text-[11px] bg-[#1f1f22] hover:bg-gray-700 px-3 py-1.5 rounded-lg text-gray-300 flex gap-1.5 items-center transition">
+                            🗃️ Salvar no Obsidian (.md)
                         </button>
-                        <button onclick="navigator.clipboard.writeText(this.getAttribute('data-raw')); this.innerText='✔️ Copiado!';" data-raw="${safeTextForCopy}" class="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded text-gray-300 flex gap-2 items-center transition">
+                        <button onclick="navigator.clipboard.writeText(this.getAttribute('data-raw')); this.innerText='✔️ Copiado!';" data-raw="${safeTextForCopy}" class="text-[11px] bg-[#1f1f22] hover:bg-gray-700 px-3 py-1.5 rounded-lg text-gray-300 flex gap-1.5 items-center transition">
                             📋 Copiar
                         </button>
                     </div>`;
@@ -465,19 +503,20 @@
             const id = 'loading-' + Date.now();
             const div = document.createElement('div');
             div.id = id;
-            div.className = 'mr-auto text-gray-500 italic text-sm';
-            div.innerText = 'Processando...';
-            chatBox.appendChild(div);
+            div.className = 'mr-auto text-gray-500 italic text-xs animate-pulse';
+            div.innerText = 'A.T.H.E.N.A. processando contexto...';
+            document.getElementById('chat-box').appendChild(div);
             scrollToBottom();
             return id;
         }
         function removeLoading(id) { document.getElementById(id)?.remove(); }
 
         function scrollToBottom() {
-            // Só rola automaticamente se estiver perto do fundo, preservando a leitura do usuário
-            const threshold = 150;
-            const isNearBottom = chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < threshold;
-            if (isNearBottom) { chatBox.scrollTop = chatBox.scrollHeight; }
+            const chatBox = document.getElementById('chat-box');
+            const threshold = 180;
+            if (chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < threshold) {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
         }
 
         function saveToObsidian(text) {
@@ -488,6 +527,200 @@
             a.click();
         }
 
+        // ======= SÍNTESE DE VOZ (TTS) COM ENTROPIA E IDIOMA =======
+        let currentSpeakingBtn = null;
+        document.getElementById('speed-select').addEventListener('change', () => {
+            if (window.speechSynthesis.speaking && currentSpeakingBtn) {
+                const text = currentSpeakingBtn.getAttribute('data-text');
+                window.speechSynthesis.cancel();
+                setTimeout(() => { executeSpeech(text); }, 200);
+            }
+        });
+
+        function toggleAudio(text, btnElement) {
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+                if (currentSpeakingBtn === btnElement) {
+                    resetAllAudioButtons();
+                    if (isLiveActive && recognition) setTimeout(() => recognition.start(), 400);
+                    return;
+                }
+            }
+            resetAllAudioButtons();
+            currentSpeakingBtn = btnElement;
+            btnElement.innerHTML = "⏹️ Parar";
+            btnElement.classList.replace('bg-[#1f1f22]', 'bg-orange-600');
+            btnElement.classList.replace('text-gray-300', 'text-white');
+
+            if (isLiveActive && recognition) {
+                try { recognition.abort(); } catch(e){}
+                document.getElementById('mic-indicator').classList.replace('bg-green-500', 'bg-gray-600');
+            }
+            executeSpeech(text);
+        }
+
+        function executeSpeech(text) {
+            const cleanText = text.replace(/[*#_`]/g, '');
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.rate = parseFloat(document.getElementById('speed-select').value);
+
+            const isSpanish = /\b(el|la|los|las|y|en|un|una|del)\b/i.test(cleanText.substring(0, 50));
+            utterance.lang = isSpanish ? 'es-ES' : 'pt-BR';
+
+            const voices = window.speechSynthesis.getVoices();
+            let selectedVoice = voices.find(v => v.lang.includes(isSpanish ? 'es' : 'pt') &&
+                (v.name.includes('Francisca') || v.name.includes('Luciana') || v.name.includes('Helena') || v.name.includes('Female')));
+            if (selectedVoice) utterance.voice = selectedVoice;
+
+            utterance.onend = () => {
+                resetAllAudioButtons();
+                if (isLiveActive && recognition) {
+                    document.getElementById('mic-indicator').classList.replace('bg-gray-600', 'bg-green-500');
+                    try { recognition.start(); } catch(e){}
+                }
+            };
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function resetAllAudioButtons() {
+            document.querySelectorAll('.audio-toggle-btn').forEach(btn => {
+                btn.innerHTML = "🔊 Ouvir";
+                btn.classList.replace('bg-orange-600', 'bg-[#1f1f22]');
+                btn.classList.replace('text-white', 'text-gray-300');
+            });
+            currentSpeakingBtn = null;
+        }
+
+        // ======= MODO LIVE MULTIMODAL & PIP =======
+        let isLiveActive = false, isHoldMode = false, autoSendTimer = null, currentLiveTranscript = "", liveGhostBubble = null, recognition = null, mediaStream = null;
+
+        document.getElementById('pip-btn').addEventListener('click', async () => {
+            const userVideo = document.getElementById('user-video');
+            if (document.pictureInPictureElement) await document.exitPictureInPicture();
+            else if (userVideo.srcObject) await userVideo.requestPictureInPicture();
+            else alert("Ative o modo Live primeiro para destacar a câmera.");
+        });
+
+        document.getElementById('toggle-hold-btn').addEventListener('click', () => {
+            isHoldMode = !isHoldMode;
+            const btn = document.getElementById('toggle-hold-btn');
+            const manualBtn = document.getElementById('manual-send-btn');
+            if (isHoldMode) {
+                btn.innerText = "▶️ Retomar Auto-Envio";
+                btn.classList.replace('bg-gray-700', 'bg-orange-600');
+                manualBtn.classList.remove('hidden');
+                clearTimeout(autoSendTimer);
+            } else {
+                btn.innerText = "⏸️ Pausar Auto-Envio";
+                btn.classList.replace('bg-orange-600', 'bg-gray-700');
+                manualBtn.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('manual-send-btn').addEventListener('click', () => {
+            if (currentLiveTranscript.trim() !== "") {
+                const text = currentLiveTranscript;
+                resetLiveState();
+                processSend(true, text);
+            }
+        });
+
+        document.getElementById('live-btn').addEventListener('click', async () => {
+            const cameraWidget = document.getElementById('camera-widget');
+            const userVideo = document.getElementById('user-video');
+            const liveBtn = document.getElementById('live-btn');
+
+            if (!isLiveActive) {
+                if (!confirm("A.T.H.E.N.A. solicita permissão de Câmera e Microfone para sessão Live. Continuar?")) return;
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    userVideo.srcObject = mediaStream;
+                    cameraWidget.style.display = 'block';
+                    document.getElementById('live-indicator').classList.replace('bg-red-900', 'bg-green-500');
+                    liveBtn.classList.add('border-green-500', 'text-green-400');
+                    isLiveActive = true;
+
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    if (SpeechRecognition) {
+                        recognition = new SpeechRecognition();
+                        recognition.lang = 'pt-BR';
+                        recognition.continuous = true;
+                        recognition.interimResults = true;
+
+                        recognition.onresult = (event) => {
+                            clearTimeout(autoSendTimer);
+                            let final = '';
+                            let interim = '';
+                            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                                if (event.results[i].isFinal) final += event.results[i][0].transcript;
+                                else interim += event.results[i][0].transcript;
+                            }
+                            currentLiveTranscript += final;
+                            const displayTxt = currentLiveTranscript + interim;
+
+                            // Verifica comando por voz para repetir última resposta
+                            if (displayTxt.toLowerCase().includes("repita a última resposta") || displayTxt.toLowerCase().includes("repita o que disse")) {
+                                if (lastAiMessageText) executeSpeech(lastAiMessageText);
+                                currentLiveTranscript = "";
+                                return;
+                            }
+
+                            if (displayTxt.trim().length > 0) {
+                                if (!liveGhostBubble) {
+                                    liveGhostBubble = document.createElement('div');
+                                    liveGhostBubble.className = 'ml-auto bg-orange text-black p-3 rounded-xl max-w-[75%] ghost-bubble italic text-xs';
+                                    document.getElementById('chat-box').appendChild(liveGhostBubble);
+                                }
+                                liveGhostBubble.innerHTML = `<strong>Captando áudio:</strong><br>${displayTxt}`;
+                                scrollToBottom();
+                            }
+
+                            if (!isHoldMode && currentLiveTranscript.trim() !== "") {
+                                autoSendTimer = setTimeout(() => {
+                                    const text = currentLiveTranscript;
+                                    resetLiveState();
+                                    processSend(true, text);
+                                }, 3500);
+                            }
+                        };
+                        recognition.onend = () => { if (isLiveActive && !window.speechSynthesis.speaking) recognition.start(); };
+                        recognition.start();
+                    }
+                } catch (err) { alert("Permissão negada ou dispositivo não detectado."); }
+            } else {
+                mediaStream.getTracks().forEach(track => track.stop());
+                cameraWidget.style.display = 'none';
+                document.getElementById('live-indicator').classList.replace('bg-green-500', 'bg-red-900');
+                liveBtn.classList.remove('border-green-500', 'text-green-400');
+                isLiveActive = false;
+                if (recognition) { recognition.onend = null; recognition.abort(); }
+                resetLiveState();
+            }
+        });
+
+        function resetLiveState() {
+            clearTimeout(autoSendTimer);
+            currentLiveTranscript = "";
+            if (liveGhostBubble) { liveGhostBubble.remove(); liveGhostBubble = null; }
+        }
+
+        // Arrasto do Widget da Webcam
+        let isDragging = false, dragStartX, dragStartY;
+        document.getElementById('camera-widget').addEventListener('mousedown', (e) => {
+            if (e.target.tagName !== 'BUTTON') {
+                isDragging = true;
+                dragStartX = e.clientX - e.currentTarget.offsetLeft;
+                dragStartY = e.clientY - e.currentTarget.offsetTop;
+            }
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const widget = document.getElementById('camera-widget');
+                widget.style.left = (e.clientX - dragStartX) + 'px';
+                widget.style.top = (e.clientY - dragStartY) + 'px';
+            }
+        });
+        window.addEventListener('mouseup', () => isDragging = false);
         window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
     </script>
 </body>

@@ -105,7 +105,7 @@
             <div class="max-w-4xl mx-auto relative flex items-end bg-[#151922] border border-gray-700 rounded-2xl shadow-2xl p-2">
                 <input type="file" id="file-attachment" class="hidden" accept=".txt,.md,image/png,image/jpeg" onchange="processAttachment(event)">
                 <button onclick="document.getElementById('file-attachment').click()" class="p-3 text-gray-400 hover:text-[#FACC15] transition shrink-0 cursor-pointer" title="Anexar Arquivo">📎</button>
-                <textarea id="user-input" class="flex-1 bg-transparent text-gray-100 p-3 resize-none outline-none max-h-48 min-h-[50px] placeholder-gray-500" placeholder="Mensagem para ATHENA IA (Shift+Enter quebra linha, Enter envia)..." rows="1"></textarea>
+                <textarea id="user-input" class="flex-1 bg-transparent text-gray-100 p-3 resize-none outline-none max-h-[60vh] min-h-[50px] overflow-y-auto placeholder-gray-500" placeholder="Mensagem para ATHENA IA (Shift+Enter quebra linha, Enter envia)..." rows="1"></textarea>
                 <!-- Botão Enviar substituído por aviãozinho apontando para a direita (Padrão WhatsApp), preservando sua cor dourada -->
                 <button id="btn-enviar" onclick="handleSend()" class="bg-[#FACC15] text-black p-3 mb-1 mr-1 rounded-full hover:bg-[#EAB308] transition shrink-0 shadow-md flex items-center justify-center w-12 h-12">
                     <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
@@ -438,91 +438,25 @@
         // Inicializa a barra lateral ao carregar a página
         window.addEventListener('DOMContentLoaded', () => { updateChatListSidebar(); });
         
-        // --- PROCESSAMENTO DE ANEXOS (Clip) ---
-        function processAttachment(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const textContent = e.target.result;
-                const userInput = document.getElementById('user-input');
-                if (file.type.startsWith('text/')) {
-                    userInput.value += `\n[Conteúdo do arquivo ${file.name}]:\n${textContent}\n`;
-                } else {
-                    alert("Aviso: Upload de imagens e PDFs complexos requerem atualização da rota /api/chat no app.py para conversão em Base64/Vision. Arquivo lido apenas no frontend por enquanto.");
-                }
-            };
-            
-            if (file.type.startsWith('text/')) {
-                reader.readAsText(file);
-            } else {
-                reader.readAsDataURL(file); // Prepara imagem
-            }
-        }
-
-       // --- GESTÃO DE SESSÕES (Nova Conversa com Retenção) ---
-        function startNewChat() {
-            const chatBox = document.getElementById('chat-box');
-            const currentChatTitle = document.getElementById('current-chat-title').innerText;
-            const retention = document.getElementById('retention-select').value;
-            
-            if (chatBox.innerHTML.trim() !== "" && !chatBox.innerHTML.includes("Sistema ATHENA Iniciado")) {
-                const chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
-                chatHistory.push({
-                    id: currentChatId,
-                    title: `Chat - ${new Date().toLocaleTimeString()}`,
-                    content: chatBox.innerHTML,
-                    retention: retention
-                });
-                localStorage.setItem('athena_chats', JSON.stringify(chatHistory));
-                updateChatListSidebar();
-            }
-
-            chatBox.innerHTML = `
-                <div class="text-center text-gray-500 text-sm mt-10">
-                    Novo Chat Iniciado. Base de dados pronta e isolada.
-                </div>`;
-            currentChatId = Date.now().toString();
-            document.getElementById('current-chat-title').innerText = "Nova Conversa";
-        }
-
-        // --- RENDERIZAR CHATS SALVOS NA BARRA LATERAL ---
-        function updateChatListSidebar() {
-            const chatListDiv = document.getElementById('chat-list');
-            if (!chatListDiv) return;
-            const chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
-            chatListDiv.innerHTML = '';
-            
-            chatHistory.reverse().forEach(chat => {
-                const chatBtn = document.createElement('div');
-                chatBtn.className = "p-2 mb-2 bg-gray-800 rounded text-sm text-gray-300 cursor-pointer hover:bg-gray-700 truncate border border-gray-700 flex justify-between";
-                chatBtn.innerHTML = `<span>${chat.title}</span> <span title="Configuração de Retenção">${chat.retention === '999' ? '📌' : '⏳'}</span>`;
-                chatBtn.onclick = () => { loadOldChat(chat); };
-                chatListDiv.appendChild(chatBtn);
-            });
-        }
-
-        function loadOldChat(chatObj) {
-            document.getElementById('chat-box').innerHTML = chatObj.content;
-            document.getElementById('current-chat-title').innerText = chatObj.title;
-            currentChatId = chatObj.id;
-        }
-
-        // Inicializa a barra lateral ao carregar a página com segurança
-        window.addEventListener('DOMContentLoaded', () => { updateChatListSidebar(); });
-                
-       // --- 5. GESTÃO DE DADOS (BUNKER) ---
+       // --- 5. GESTÃO DE DADOS (BUNKER) - Atualizado para Perfil + Chats ---
         function exportBunker() {
             const chatHistory = localStorage.getItem('athena_chats') || '[]';
-            const blob = new Blob([chatHistory], { type: 'application/json' });
+            const profileData = localStorage.getItem('athena_profile') || '';
+
+            // Empacota Chats e Memória no mesmo arquivo
+            const bunkerData = {
+                chats: JSON.parse(chatHistory),
+                profile: profileData
+            };
+
+            const blob = new Blob([JSON.stringify(bunkerData)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `ATHENA_Bunker_${new Date().toISOString().slice(0,10)}.json`;
             a.click();
             URL.revokeObjectURL(url);
-            alert("Backup Bunker gerado com sucesso!");
+            alert("Backup Bunker gerado com sucesso! (Chats e Memória/Perfil salvos).");
         }
 
         function importBunker(event) {
@@ -532,13 +466,20 @@
             reader.onload = function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
-                    if (Array.isArray(data)) {
+                    
+                    // Restaura identificando se é o formato novo (Objeto) ou antigo (Array)
+                    if (data.chats && data.profile !== undefined) {
+                        localStorage.setItem('athena_chats', JSON.stringify(data.chats));
+                        localStorage.setItem('athena_profile', data.profile);
+                    } else if (Array.isArray(data)) {
                         localStorage.setItem('athena_chats', JSON.stringify(data));
-                        updateChatListSidebar();
-                        alert("Bunker importado com sucesso! Seus chats antigos foram restaurados.");
                     } else {
                         alert("Formato de Bunker inválido.");
+                        return;
                     }
+
+                    updateChatListSidebar();
+                    alert("Bunker importado com sucesso! Seus chats e memória foram restaurados.");
                 } catch (err) {
                     alert("Erro ao ler o arquivo Bunker: " + err.message);
                 }
@@ -546,21 +487,23 @@
             reader.readAsText(file);
         }
 
-        // --- 6. MODO LIVE INTERNO (Flutuante na Aba e Sem Eco) ---
+        // --- 6. MODO LIVE (API Document Picture-in-Picture com Supressão de Eco) ---
         let isLiveActive = false;
+        let pipWindowRef = null;
 
         async function toggleLiveMode() {
             const container = document.getElementById('live-video-container');
             const videoElement = document.getElementById('webcam-feed');
 
+            // Se já estiver ativo, o clique serve para desligar e fechar a janela
             if (isLiveActive) {
-                // Desligar
-                container.classList.add('hidden');
-                container.classList.remove('flex');
-                if (localStream) {
-                    localStream.getTracks().forEach(t => t.stop());
-                }
-                isLiveActive = false;
+                if (pipWindowRef) pipWindowRef.close(); 
+                return;
+            }
+
+            // Validação de compatibilidade do navegador
+            if (!('documentPictureInPicture' in window)) {
+                alert("Seu navegador atual não suporta a API Document Picture-in-Picture. Utilize o Chrome ou Edge atualizados.");
                 return;
             }
 
@@ -568,11 +511,19 @@
             if (!consent) return;
 
             try {
-                // Ativa a div flutuante na tela
-                container.classList.remove('hidden');
-                container.classList.add('flex');
+                // Abre a janela flutuante nativa do Sistema Operacional (Desacoplamento da Aba)
+                pipWindowRef = await window.documentPictureInPicture.requestWindow({
+                    width: 320,
+                    height: 420
+                });
 
-                // Inicia WebCam e Microfone com tratamentos anti-eco rigorosos
+                // Move o container da interface principal para a janela PiP
+                container.style.display = 'flex';
+                pipWindowRef.document.body.appendChild(container);
+                pipWindowRef.document.body.style.margin = '0';
+                pipWindowRef.document.body.style.background = '#151922';
+
+                // Inicia WebCam e Microfone (Tratamentos anti-eco rigorosos aplicados)
                 localStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { width: 300 }, 
                     audio: { 
@@ -585,72 +536,22 @@
                 videoElement.srcObject = localStream;
                 isLiveActive = true;
 
-                // Lógica simples para arrastar a janelinha PiP interna
-                let isDragging = false, startX, startY, initialX, initialY;
-                const headerDrag = container.querySelector('.bg-gray-800');
-                
-                headerDrag.onmousedown = (e) => {
-                    isDragging = true;
-                    startX = e.clientX;
-                    startY = e.clientY;
-                    initialX = container.offsetLeft;
-                    initialY = container.offsetTop;
-                    // Prevenir comportamentos indesejados ao arrastar
-                    container.style.right = 'auto'; 
-                    e.preventDefault();
-                };
-
-                document.onmousemove = (e) => {
-                    if (!isDragging) return;
-                    const dx = e.clientX - startX;
-                    const dy = e.clientY - startY;
-                    container.style.left = (initialX + dx) + 'px';
-                    container.style.top = (initialY + dy) + 'px';
-                };
-
-                document.onmouseup = () => { isDragging = false; };
-
-            } catch (err) {
-                console.error(err);
-                alert("Erro ao iniciar Live: " + err.message);
-                container.classList.add('hidden');
-                container.classList.remove('flex');
-                isLiveActive = false;
-            }
-        }
-
-            const consent = confirm("ATHENA IA solicita acesso à Câmera e Microfone. Permitir?");
-            if (!consent) return;
-
-            try {
-                // ABRE DISCRETO NO CANTO SUPERIOR DIREITO
-                const pipWindow = await window.documentPictureInPicture.requestWindow({
-                    width: 300,
-                    height: 400
-                });
-
-                const container = document.getElementById('live-video-container');
-                container.style.display = 'flex';
-                pipWindow.document.body.appendChild(container);
-                pipWindow.document.body.style.margin = '0';
-                pipWindow.document.body.style.background = '#151922';
-
-                // Inicia WebCam
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                const videoElement = pipWindow.document.getElementById('webcam-feed');
-                videoElement.srcObject = localStream;
-
-                pipWindow.addEventListener("pagehide", () => {
-                    document.body.appendChild(container); // Devolve pro DOM
+                // Restaura o container para a aba original de forma segura ao fechar o PiP
+                pipWindowRef.addEventListener("pagehide", () => {
+                    document.body.appendChild(container);
                     container.style.display = 'none';
                     if (localStream) {
                         localStream.getTracks().forEach(t => t.stop());
                     }
+                    isLiveActive = false;
+                    pipWindowRef = null;
                 });
 
             } catch (err) {
                 console.error(err);
                 alert("Erro ao iniciar Live: " + err.message);
+                container.style.display = 'none';
+                isLiveActive = false;
             }
         }
     </script>

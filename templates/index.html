@@ -114,17 +114,20 @@
         </div>
 
     <!-- Container do Vídeo PiP (Injetado via Document PiP) -->
-    <div id="live-video-container" class="flex flex-col items-center justify-center w-full h-full p-2 bg-[#151922] text-white font-sans">
-        <div class="flex items-center justify-between w-full px-2 mb-2">
-            <span class="font-bold text-[#FACC15]">🦉 ATHENA Live</span>
-            <div id="mic-pulse" class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+   <!-- Container do Vídeo Flutuante Interno (Substituindo o antigo Document PiP) -->
+    <div id="live-video-container" class="absolute top-20 right-6 w-72 bg-[#151922] border border-gray-600 rounded-xl shadow-2xl z-50 flex-col overflow-hidden cursor-move hidden">
+        <div class="flex items-center justify-between w-full px-3 py-2 bg-gray-800 border-b border-gray-700">
+            <span class="font-bold text-[#FACC15] text-sm">🦉 ATHENA Live</span>
+            <div class="flex items-center gap-2">
+                <div id="mic-pulse" class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div>
+                <button onclick="toggleLiveMode()" class="text-gray-400 hover:text-red-500 text-xs font-bold">✕</button>
+            </div>
         </div>
-        <video id="webcam-feed" autoplay playsinline class="w-full h-auto rounded-lg shadow-lg border-2 border-gray-700 object-cover"></video>
-        <div class="mt-3 w-full flex gap-2">
-            <button id="btn-pause-live" class="flex-1 bg-gray-700 text-white py-2 rounded hover:bg-gray-600 text-sm font-bold">⏸ Pausar</button>
-        </div>
-        <div id="ghost-bubble" class="mt-2 text-xs text-gray-400 italic border-t border-gray-700 pt-2 w-full text-center min-h-[20px]">
-            Ouvindo...
+        <!-- IMPORTANTE: muted impede o eco absoluto de você ouvindo a si mesmo -->
+        <video id="webcam-feed" autoplay playsinline muted class="w-full h-auto object-cover bg-black"></video>
+        <div class="p-2 w-full flex flex-col gap-2">
+            <button id="btn-pause-live" class="w-full bg-gray-700 text-white py-1.5 rounded hover:bg-gray-600 text-xs font-bold transition">⏸ Pausar IA</button>
+            <div id="ghost-bubble" class="text-[10px] text-gray-400 italic text-center min-h-[15px]">Ouvindo...</div>
         </div>
     </div>
 
@@ -509,16 +512,112 @@
         // Inicializa a barra lateral ao carregar a página com segurança
         window.addEventListener('DOMContentLoaded', () => { updateChatListSidebar(); });
                 
+       // --- 5. GESTÃO DE DADOS (BUNKER) ---
         function exportBunker() {
-            alert("Módulo Bunker Backup será baixado em breve (Requer integração completa do IndexedDB na V5.3)");
+            const chatHistory = localStorage.getItem('athena_chats') || '[]';
+            const blob = new Blob([chatHistory], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ATHENA_Bunker_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            alert("Backup Bunker gerado com sucesso!");
         }
 
-        // --- 5. MODO LIVE DISCRETO (Document PiP) ---
+        function importBunker(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (Array.isArray(data)) {
+                        localStorage.setItem('athena_chats', JSON.stringify(data));
+                        updateChatListSidebar();
+                        alert("Bunker importado com sucesso! Seus chats antigos foram restaurados.");
+                    } else {
+                        alert("Formato de Bunker inválido.");
+                    }
+                } catch (err) {
+                    alert("Erro ao ler o arquivo Bunker: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- 6. MODO LIVE INTERNO (Flutuante na Aba e Sem Eco) ---
+        let isLiveActive = false;
+
         async function toggleLiveMode() {
-            if (!('documentPictureInPicture' in window)) {
-                alert('Seu navegador não suporta Document PiP.');
+            const container = document.getElementById('live-video-container');
+            const videoElement = document.getElementById('webcam-feed');
+
+            if (isLiveActive) {
+                // Desligar
+                container.classList.add('hidden');
+                container.classList.remove('flex');
+                if (localStream) {
+                    localStream.getTracks().forEach(t => t.stop());
+                }
+                isLiveActive = false;
                 return;
             }
+
+            const consent = confirm("ATHENA IA solicita acesso à Câmera e Microfone com cancelamento de eco. Permitir?");
+            if (!consent) return;
+
+            try {
+                // Ativa a div flutuante na tela
+                container.classList.remove('hidden');
+                container.classList.add('flex');
+
+                // Inicia WebCam e Microfone com tratamentos anti-eco rigorosos
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 300 }, 
+                    audio: { 
+                        echoCancellation: true, 
+                        noiseSuppression: true, 
+                        autoGainControl: true 
+                    } 
+                });
+                
+                videoElement.srcObject = localStream;
+                isLiveActive = true;
+
+                // Lógica simples para arrastar a janelinha PiP interna
+                let isDragging = false, startX, startY, initialX, initialY;
+                const headerDrag = container.querySelector('.bg-gray-800');
+                
+                headerDrag.onmousedown = (e) => {
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    initialX = container.offsetLeft;
+                    initialY = container.offsetTop;
+                    // Prevenir comportamentos indesejados ao arrastar
+                    container.style.right = 'auto'; 
+                    e.preventDefault();
+                };
+
+                document.onmousemove = (e) => {
+                    if (!isDragging) return;
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    container.style.left = (initialX + dx) + 'px';
+                    container.style.top = (initialY + dy) + 'px';
+                };
+
+                document.onmouseup = () => { isDragging = false; };
+
+            } catch (err) {
+                console.error(err);
+                alert("Erro ao iniciar Live: " + err.message);
+                container.classList.add('hidden');
+                container.classList.remove('flex');
+                isLiveActive = false;
+            }
+        }
 
             const consent = confirm("ATHENA IA solicita acesso à Câmera e Microfone. Permitir?");
             if (!consent) return;

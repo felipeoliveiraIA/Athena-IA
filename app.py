@@ -9,18 +9,14 @@ OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 def index():
     return render_template('index.html')
 
-# CORREÇÃO DEFINITIVA: Rota exata '/chat' conforme exigido pelo seu frontend
+# Rota corrigida para bater exatamente com a requisição do frontend
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.json or {}
     provider = data.get('provider', 'Nuvem (Qwen Coder)')
     messages = data.get('messages', [])
 
-    # ==========================================
-    # SELEÇÃO DE MODELOS AVANÇADOS (VIBE-CODING)
-    # ==========================================
     if "Local" in provider:
-        # --- PROCESSAMENTO LOCAL (LM Studio / HD Local na porta 1234) ---
         try:
             res = requests.post(
                 "http://127.0.0.1:1234/v1/chat/completions",
@@ -29,18 +25,16 @@ def chat():
             )
             return jsonify(res.json())
         except requests.exceptions.ConnectionError:
-            return jsonify({"error": "Servidor local (LM Studio) indisponível. Verifique a porta 1234."}), 503
-
+            return jsonify({"error": "Servidor local indisponível. Verifique a porta 1234."}), 503
     else:
-        # --- PROCESSAMENTO NUVEM (OpenRouter) ---
         if not OPENROUTER_API_KEY:
             return jsonify({"error": "Chave OPENROUTER_API_KEY não configurada no Render."}), 400
 
-        # Define os modelos super avançados e autônomos para código e orquestração
+        # Qwen Coder como principal para arquitetura de código, Gemini como secundário
         if "Qwen" in provider:
             model_id = "qwen/qwen-2.5-coder-32b-instruct"
         else:
-            model_id = "google/gemini-pro-1.5" # Gemini avançado
+            model_id = "google/gemini-pro-1.5"
 
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -49,7 +43,20 @@ def chat():
             "X-Title": "ATHENA IA"
         }
 
-        # Teto de tokens mantido para evitar o Erro 402, conforme Relatório v5.2
+        # System Prompt injetado no backend para garantir formatação estruturada (v5.2)
+        system_prompt = {
+            "role": "system",
+            "content": (
+                "Você é a ATHENA IA. Use formatação limpa com títulos, listas e tabelas. "
+                "Use LaTeX (envolvido em $$) ESTRITAMENTE para equações matemáticas ou científicas complexas. "
+                "NUNCA use LaTeX para formatar texto comum, variáveis simples ou negrito."
+            )
+        }
+        
+        # Garante que o system prompt seja a primeira mensagem
+        if not messages or messages[0].get("role") != "system":
+            messages.insert(0, system_prompt)
+
         payload = {
             "model": model_id,
             "messages": messages,
@@ -69,7 +76,7 @@ def chat():
             
             return jsonify(res.json()), res.status_code
         except Exception as e:
-            return jsonify({"error": f"Falha na nuvem: {str(e)}"}), 500
+            return jsonify({"error": f"Falha na API: {str(e)}"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))

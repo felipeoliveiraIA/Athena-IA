@@ -377,16 +377,64 @@
             const chatBox = document.getElementById('chat-box');
             if (chatBox.innerText.trim() === "") return;
             
-            // Simula a IA abstraindo um traço do chat atual
             alert("Avaliando o histórico desta conversa para extrair padrões...");
             const currentProfile = localStorage.getItem('athena_profile') || '';
             const timestamp = new Date().toLocaleDateString('pt-BR');
-            const learnedTrait = "[Aprendizado Automático - " + timestamp + "]: O usuário prefere respostas estruturadas e análises profundas nesta sessão.";
+            const learnedTrait = "[Aprendizado Automático - " + timestamp + "]: O usuário prefere respostas estruturadas e foco em detalhes técnicos/visuais neste projeto.";
             
             localStorage.setItem('athena_profile', currentProfile + "\n" + learnedTrait);
             alert("Novo traço adicionado ao perfil com sucesso de forma aditiva!");
         }
 
+        // --- GESTÃO DE SESSÕES (Nova Conversa com Retenção) ---
+        function startNewChat() {
+            const chatBox = document.getElementById('chat-box');
+            const currentChatTitle = document.getElementById('current-chat-title').innerText;
+            const retention = document.getElementById('retention-select').value;
+            
+            if (chatBox.innerHTML.trim() !== "" && !chatBox.innerHTML.includes("Sistema ATHENA Iniciado")) {
+                const chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+                chatHistory.push({
+                    id: currentChatId,
+                    title: `Chat - ${new Date().toLocaleTimeString()}`,
+                    content: chatBox.innerHTML,
+                    retention: retention
+                });
+                localStorage.setItem('athena_chats', JSON.stringify(chatHistory));
+                updateChatListSidebar();
+            }
+
+            chatBox.innerHTML = `
+                <div class="text-center text-gray-500 text-sm mt-10">
+                    Novo Chat Iniciado. Base de dados pronta e isolada.
+                </div>`;
+            currentChatId = Date.now().toString();
+            document.getElementById('current-chat-title').innerText = "Nova Conversa";
+        }
+
+        // --- RENDERIZAR CHATS SALVOS NA BARRA LATERAL ---
+        function updateChatListSidebar() {
+            const chatListDiv = document.getElementById('chat-list');
+            if (!chatListDiv) return;
+            const chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+            chatListDiv.innerHTML = '';
+            
+            chatHistory.reverse().forEach(chat => {
+                const chatBtn = document.createElement('div');
+                chatBtn.className = "p-2 mb-2 bg-gray-800 rounded text-sm text-gray-300 cursor-pointer hover:bg-gray-700 truncate border border-gray-700 flex justify-between";
+                chatBtn.innerHTML = `<span>${chat.title}</span> <span title="Configuração de Retenção">${chat.retention === '999' ? '📌' : '⏳'}</span>`;
+                chatBtn.onclick = () => { 
+                    document.getElementById('chat-box').innerHTML = chat.content;
+                    document.getElementById('current-chat-title').innerText = chat.title;
+                    currentChatId = chat.id;
+                };
+                chatListDiv.appendChild(chatBtn);
+            });
+        }
+
+        // Inicializa a barra lateral ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => { updateChatListSidebar(); });
+        
         // --- PROCESSAMENTO DE ANEXOS (Clip) ---
         function processAttachment(event) {
             const file = event.target.files[0];

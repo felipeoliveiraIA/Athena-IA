@@ -9,12 +9,18 @@
     <style>
         /* Ajuste do Scrollbar */
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #151922; }
+        ::-webkit-scrollbar-track { background: #131314; } /* Cinza super escuro Gemini */
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #4B5563; }
         
         /* Container Oculto para o PiP */
         #live-video-container { display: none; }
+        
+        /* Animação do Mic Pulse */
+        @keyframes pulse-mic { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+        .mic-active { animation: pulse-mic 1.5s infinite; background-color: #22c55e; } /* Verde */
+        .mic-paused { background-color: #ef4444; } /* Vermelho */
+        .mic-listening { background-color: #eab308; } /* Amarelo (escuta prolongada) */
     </style>
 </head>
 <body class="bg-[#0f1219] text-gray-200 h-screen flex overflow-hidden font-sans">

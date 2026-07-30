@@ -8,6 +8,8 @@ CORS(app)
 
 # Busca a chave de forma segura nas variáveis de ambiente do Render
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+# Configuração da URL de Origem para liberação de uso na API gratuita
+SITE_URL = os.environ.get("SITE_URL", "https://athena-ia.onrender.com")
 
 @app.route('/')
 def home():
@@ -17,7 +19,6 @@ def home():
 def chat():
     data = request.json
     user_message = data.get('message', '')
-    # Agora o frontend envia o ID real do modelo do OpenRouter ou 'local'
     selected_model = data.get('model', 'qwen/qwen-2.5-coder-32b-instruct:free') 
     system_prompt = data.get('system_prompt', 'Você é a ATHENA IA. Responda em Markdown limpo.')
 
@@ -30,12 +31,16 @@ def chat():
             if not OPENROUTER_API_KEY:
                 return jsonify({'error': 'Chave da API OpenRouter não configurada no servidor.'}), 500
             
+            # Cabeçalhos obrigatórios inseridos para evitar bloqueios silenciosos do OpenRouter
             headers = {
                 "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "HTTP-Referer": SITE_URL,
+                "X-Title": "ATHENA IA v5.2 OS"
             }
+            
             payload = {
-                "model": selected_model, # Injeta dinamicamente a IA gratuita escolhida na lista
+                "model": selected_model, 
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message}
@@ -45,10 +50,19 @@ def chat():
             
             response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
             
-            if response.status_code == 402:
-                return jsonify({'error': 'Erro 402: Limite de uso gratuito atingido nesta IA. Tente outra da lista.'}), 402
+            # Novo bloco cirúrgico de tratamento de erros
+            if not response.ok:
+                if response.status_code == 402:
+                    return jsonify({'error': 'Erro 402: Limite de uso gratuito atingido. Tente usar um dos modelos estáveis da lista.'}), 402
+                
+                try:
+                    # Captura o motivo real da falha (ex: Model not found)
+                    error_data = response.json()
+                    error_msg = error_data.get('error', {}).get('message', f'Status {response.status_code}')
+                    return jsonify({'error': f'Recusa do OpenRouter (Erro {response.status_code}): {error_msg}. Tente um modelo Estável.'}), response.status_code
+                except Exception:
+                    return jsonify({'error': f'Falha externa de API HTTP {response.status_code}.'}), response.status_code
             
-            response.raise_for_status()
             ai_reply = response.json()['choices'][0]['message']['content']
             return jsonify({'reply': ai_reply})
 
@@ -68,11 +82,10 @@ def chat():
             return jsonify({'reply': ai_reply})
 
     except requests.exceptions.ConnectionError:
-        return jsonify({'error': 'Falha de Conexão. Verifique a rede ou se o LM Studio está rodando (caso uso local).'}), 503
+        return jsonify({'error': 'Falha de Conexão. Verifique a rede ou certifique-se de que o LM Studio está rodando localmente na porta 1234.'}), 503
     except Exception as e:
-        return jsonify({'error': f'Erro no servidor: {str(e)}'}), 500
+        return jsonify({'error': f'Erro interno do servidor ATHENA: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    # Bind para Cloud (Render) e Local
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)

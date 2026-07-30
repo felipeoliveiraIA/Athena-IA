@@ -86,32 +86,25 @@
             </div>
         </header>
 
-        <!-- Container das Mensagens -->
+     <!-- Container das Mensagens (Unificado e Protegido) -->
         <div id="chat-box" class="flex-1 overflow-y-auto p-6 flex flex-col gap-6 scroll-smooth pb-32">
             <div class="text-center text-gray-500 text-sm mt-10">
-                Sistema ATHENA Iniciado. Como posso ajudar na sua arquitetura hoje?
+                Sistema ATHENA Iniciado. Base de dados pronta. Como posso ajudar na sua arquitetura hoje?
             </div>
         </div>
 
-       <!-- Container das Mensagens -->
-        <div id="chat-box" class="flex-1 overflow-y-auto p-6 flex flex-col gap-6 scroll-smooth">
-            <div class="text-center text-gray-500 text-sm mt-10">
-                Sistema ATHENA Iniciado. Base de dados pronta.
-            </div>
-        </div>
-
-        <!-- Área de Input (WhatsApp Style - Corrigido para não sobrepor) -->
+        <!-- Área de Input (WhatsApp Style) -->
         <div class="w-full bg-[#0f1219] pt-2 pb-6 px-6 shrink-0 z-20 border-t border-gray-800">
             <div class="max-w-4xl mx-auto relative flex items-end bg-[#151922] border border-gray-700 rounded-2xl shadow-2xl p-2">
                 <input type="file" id="file-attachment" class="hidden" accept=".txt,.md,image/png,image/jpeg" onchange="processAttachment(event)">
                 <button onclick="document.getElementById('file-attachment').click()" class="p-3 text-gray-400 hover:text-[#FACC15] transition shrink-0 cursor-pointer" title="Anexar Arquivo">📎</button>
-                <textarea id="user-input" class="flex-1 bg-transparent text-gray-100 p-3 resize-none outline-none max-h-48 min-h-[50px] placeholder-gray-500" placeholder="Mensagem para ATHENA IA (Cole imagens com Ctrl+V ou Shift+Enter para quebrar linha)..." rows="1"></textarea>
-                <button id="btn-enviar" onclick="handleSend()" class="bg-[#FACC15] text-black p-3 mb-1 mr-1 rounded-full hover:bg-[#EAB308] transition shrink-0 shadow-md">
-                    <svg class="w-5 h-5 transform -rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                <textarea id="user-input" class="flex-1 bg-transparent text-gray-100 p-3 resize-none outline-none max-h-48 min-h-[50px] placeholder-gray-500" placeholder="Mensagem para ATHENA IA (Shift+Enter quebra linha, Enter envia)..." rows="1"></textarea>
+                <!-- Botão Enviar substituído por aviãozinho apontando para a direita (Padrão WhatsApp), preservando sua cor dourada -->
+                <button id="btn-enviar" onclick="handleSend()" class="bg-[#FACC15] text-black p-3 mb-1 mr-1 rounded-full hover:bg-[#EAB308] transition shrink-0 shadow-md flex items-center justify-center w-12 h-12">
+                    <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
                 </button>
             </div>
         </div>
-    </main>
 
     <!-- Container do Vídeo PiP (Injetado via Document PiP) -->
     <div id="live-video-container" class="flex flex-col items-center justify-center w-full h-full p-2 bg-[#151922] text-white font-sans">
@@ -458,9 +451,8 @@
             }
         }
 
-        // --- GESTÃO DE SESSÕES (Nova Conversa) ---
+       // --- GESTÃO DE SESSÕES (Nova Conversa com Retenção) ---
         function startNewChat() {
-            // Salva o chat atual no localStorage antes de limpar a tela (Simulação do DB local)
             const chatBox = document.getElementById('chat-box');
             const currentChatTitle = document.getElementById('current-chat-title').innerText;
             const retention = document.getElementById('retention-select').value;
@@ -477,7 +469,6 @@
                 updateChatListSidebar();
             }
 
-            // Limpa a tela para a nova conversa
             chatBox.innerHTML = `
                 <div class="text-center text-gray-500 text-sm mt-10">
                     Novo Chat Iniciado. Base de dados pronta e isolada.
@@ -489,6 +480,7 @@
         // --- RENDERIZAR CHATS SALVOS NA BARRA LATERAL ---
         function updateChatListSidebar() {
             const chatListDiv = document.getElementById('chat-list');
+            if (!chatListDiv) return;
             const chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
             chatListDiv.innerHTML = '';
             
@@ -507,11 +499,9 @@
             currentChatId = chatObj.id;
         }
 
-        // Inicializa a barra lateral ao carregar a página
-        window.onload = () => { updateChatListSidebar(); };
-
-        }
-        
+        // Inicializa a barra lateral ao carregar a página com segurança
+        window.addEventListener('DOMContentLoaded', () => { updateChatListSidebar(); });
+                
         function exportBunker() {
             alert("Módulo Bunker Backup será baixado em breve (Requer integração completa do IndexedDB na V5.3)");
         }

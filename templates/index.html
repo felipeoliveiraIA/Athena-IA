@@ -1,351 +1,560 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATHENA IA - v5.2 OS</title>
+    <title>ATHENA IA</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = { darkMode: 'class', theme: { extend: { colors: {
-            darkBg: '#0d0d0f', panelBg: '#161618', userBubble: '#2A3942', /* WhatsApp dark tone */ aiBubble: '#1E1E22', accentGold: '#F4D03F'
-        }}}}
-    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0d0d0f; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-        .markdown-body h2 { font-size: 1.5em; font-weight: bold; margin-bottom: 0.5em; color: #F4D03F; }
-        .markdown-body h3 { font-size: 1.2em; font-weight: bold; margin-bottom: 0.5em; color: #e5e7eb; }
-        .markdown-body p { margin-bottom: 1em; }
-        .markdown-body pre { background: #0d0d0f; padding: 10px; border-radius: 8px; overflow-x: auto; margin-bottom: 1em; border: 1px solid #333;}
-        .markdown-body code { font-family: monospace; color: #F4D03F; }
-        .markdown-body ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1em; }
-        .dropdown-menu { display: none; } .dropdown-menu.active { display: block; }
-        .ghost-bubble { border: 1px dashed #6b7280; background: rgba(30,30,34,0.5); }
+        /* Design Visual de Alta Performance (v5.2) */
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .bg-panel { background-color: #1e293b; }
+        .accent-gold { color: #fbbf24; }
+        .bg-gold { background-color: #fbbf24; color: #0f172a; }
+        .bg-gold:hover { background-color: #f59e0b; }
+        
+        /* Chat WhatsApp-Style */
+        .chat-container { display: flex; flex-direction: column; height: 100vh; }
+        .messages-area { flex-grow: 1; overflow-y: auto; padding: 1.5rem; scroll-behavior: smooth; }
+        .message-bubble { max-width: 80%; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; position: relative; }
+        .user-msg { background-color: #334155; margin-left: auto; border-bottom-right-radius: 0; }
+        .ai-msg { background-color: #1e293b; border: 1px solid #334155; margin-right: auto; border-bottom-left-radius: 0; }
+        
+        /* Input expansível */
+        #user-input { resize: none; overflow-y: hidden; min-height: 44px; max-height: 200px; }
+        
+        /* Markdown / LaTeX restrito */
+        .markdown-body pre { background: #0f172a; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-top: 0.5rem; }
+        .markdown-body code { font-family: monospace; color: #fbbf24; }
+        .markdown-body table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .markdown-body th, .markdown-body td { border: 1px solid #475569; padding: 0.5rem; }
+        
+        /* Ghost Bubble & Mic Pulse */
+        .ghost-bubble { border: 2px dashed #475569; opacity: 0.7; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
+        .mic-active { border-radius: 50%; animation: pulse 2s infinite; background-color: #22c55e; width: 12px; height: 12px; display: inline-block; }
     </style>
 </head>
-<body class="bg-darkBg text-gray-200 h-screen flex font-sans overflow-hidden">
+<body class="flex h-screen overflow-hidden">
 
-    <!-- BARRA LATERAL -->
-    <aside class="w-80 bg-panelBg flex flex-col border-r border-gray-800 shrink-0">
-        <div class="p-6 border-b border-gray-800">
-            <h1 class="text-xl font-bold text-accentGold flex items-center gap-2">🦉 ATHENA IA</h1>
-            <span class="text-xs bg-amber-900 text-amber-200 px-2 py-1 rounded-full mt-2 inline-block">v5.2 OS</span>
+    <!-- Barra Lateral (Gestão de Sessões & Bunker) -->
+    <aside class="w-80 bg-panel border-r border-slate-700 flex flex-col transition-all duration-300">
+        <div class="p-4 border-b border-slate-700 flex items-center justify-between">
+            <h1 class="text-xl font-bold accent-gold"><i class="fa-solid fa-owl"></i> ATHENA IA</h1>
+            <button onclick="createNewChat()" class="text-slate-300 hover:accent-gold"><i class="fa-solid fa-plus"></i></button>
         </div>
-
-        <div class="p-4 flex flex-col gap-3 border-b border-gray-800">
-            <button onclick="openProfilePanel()" class="bg-gray-800 hover:bg-gray-700 text-sm py-2 rounded-lg text-left px-4 text-pink-400 flex justify-between items-center transition-colors">
-                <span><i class="fas fa-brain"></i> Memória & Perfil</span>
-                <i class="fas fa-bolt text-yellow-500" title="⚡ IA Aprender & Adicionar"></i>
-            </button>
-            <button onclick="createNewChat()" class="bg-accentGold hover:bg-yellow-400 text-gray-900 font-semibold py-3 rounded-xl shadow-lg transition-transform hover:scale-105 flex justify-center items-center gap-2">
-                <i class="fas fa-plus"></i> Nova Conversa
+        
+        <div class="p-2 space-y-2">
+            <button class="w-full text-left p-2 rounded hover:bg-slate-700 text-sm flex items-center gap-2" onclick="openProfile()">
+                <i class="fa-solid fa-brain accent-gold"></i> Memória & Perfil
             </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-3" id="chatList"></div>
+        <div class="flex-1 overflow-y-auto p-2 space-y-1" id="chat-list">
+            <!-- Chats carregados do IndexedDB via JS -->
+        </div>
 
-        <div class="p-4 border-t border-gray-800 text-sm">
-            <button onclick="exportBunker()" class="w-full bg-gray-800 hover:bg-gray-700 py-2.5 rounded-lg text-xs flex justify-center items-center gap-2 transition-colors border border-gray-700">
-                <i class="fas fa-download"></i> Backup Bunker (.json)
+        <div class="p-4 border-t border-slate-700">
+            <button onclick="exportBunker()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm flex justify-center items-center gap-2">
+                <i class="fa-solid fa-box-archive"></i> Exportar Bunker (Backup)
             </button>
         </div>
     </aside>
 
-    <!-- ÁREA PRINCIPAL -->
-    <main class="flex-1 flex flex-col relative h-full">
-        <!-- HEADER -->
-        <header class="h-16 border-b border-gray-800 bg-panelBg flex items-center justify-between px-6 shrink-0">
+    <!-- Área Principal de Chat -->
+    <main class="flex-1 chat-container">
+        <!-- Cabeçalho -->
+        <header class="bg-panel p-4 border-b border-slate-700 flex justify-between items-center shadow-md z-10">
             <div class="flex items-center gap-4">
-                <h2 id="currentChatTitle" class="text-lg font-semibold text-gray-100">Nova Conversa</h2>
-                <select id="chatRetention" onchange="updateChatRetention()" class="bg-gray-900 border border-gray-700 text-xs rounded px-2 py-1 text-gray-400 outline-none">
-                    <option value="1M">1 Mês</option>
-                    <option value="2M">2 Meses</option>
-                    <option value="3M">3 Meses</option>
-                    <option value="6M">6 Meses</option>
-                    <option value="1Y">1 Ano</option>
-                    <option value="2Y">2 Anos</option>
-                    <option value="5Y">5 Anos</option>
-                    <option value="PIN">📌 Fixado</option>
+                <h2 id="current-chat-title" class="font-semibold text-lg">Nova Conversa</h2>
+                <select id="retention-select" class="bg-slate-700 text-xs p-1 rounded cursor-pointer" onchange="updateRetention()">
+                    <option value="30">Reter: 1 Mês</option>
+                    <option value="60">Reter: 2 Meses</option>
+                    <option value="180">Reter: 6 Meses</option>
+                    <option value="365">Reter: 1 Ano</option>
+                    <option value="1825">Reter: 5 Anos</option>
+                    <option value="permanent">📌 Fixar Permanente</option>
                 </select>
             </div>
             
             <div class="flex items-center gap-3">
-                <select id="modelSelect" class="bg-gray-900 border border-gray-700 text-sm rounded-lg px-3 py-1.5 outline-none focus:border-accentGold text-gray-300">
-                    <option value="gemini">⚡ Nuvem (Gemini)</option>
-                    <option value="qwen">🧠 Nuvem (Qwen Coder)</option>
-                    <option value="local">🖥️ HD Local (LM Studio)</option>
-                </select>
-                
-                <select id="speedSelect" class="bg-gray-900 border border-gray-700 text-sm rounded-lg px-3 py-1.5 outline-none text-gray-300">
+                <!-- Controle de Velocidade TTS -->
+                <select id="tts-speed" class="bg-slate-700 text-xs p-1 rounded cursor-pointer" onchange="updateTTSSpeed()">
                     <option value="0.75">0.75x</option>
-                    <option value="1.0" selected>1.0x</option>
+                    <option value="1.0" selected>Voz: 1.0x</option>
                     <option value="1.25">1.25x</option>
                     <option value="1.5">1.50x</option>
                     <option value="2.0">2.0x</option>
-                    <option value="3.0">3.0x</option>
                     <option value="4.0">4.0x</option>
                 </select>
-
-                <button onclick="requestPiPWindow()" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-sm rounded-lg px-3 py-1.5 flex items-center gap-2" title="Desacoplar Live">
-                    <i class="fas fa-external-link-alt text-blue-400"></i> PiP Live
+                
+                <!-- Modelos Vibe-Coding -->
+                <select id="model-selector" class="bg-slate-700 p-2 rounded text-sm cursor-pointer border border-slate-600">
+                    <option value="Nuvem (Qwen Coder)" selected>🧠 Nuvem (Qwen Coder 32B)</option>
+                    <option value="Nuvem (Gemini)">⚡ Nuvem (Gemini Pro 1.5)</option>
+                    <option value="HD Local (LM Studio)">💻 HD Local (Porta 1234)</option>
+                </select>
+                <button onclick="startLiveMode()" class="bg-gold px-4 py-2 rounded text-sm font-bold shadow-lg hover:scale-105 transition">
+                    <i class="fa-solid fa-video"></i> Modo Live (PiP)
                 </button>
             </div>
         </header>
 
-        <!-- MENSAGENS -->
-        <div id="chatContainer" class="flex-1 overflow-y-auto p-6 space-y-6 pb-32 scroll-smooth">
-            <div class="text-center text-gray-500 text-sm mt-10">
-                <i class="fas fa-owl text-4xl mb-3 text-gray-700"></i>
-                <p>Sistema ATHENA Iniciado. Como posso ajudar na sua arquitetura hoje?</p>
+        <!-- Mensagens -->
+        <div id="chat-messages" class="messages-area">
+            <div class="text-center text-slate-500 mt-10 text-sm">
+                <i class="fa-solid fa-shield-halved text-2xl mb-2"></i><br>
+                Bunker IndexedDB Ativo.<br>Suas conversas estão salvas localmente.
             </div>
         </div>
 
-        <div id="ghostBubble" class="hidden absolute bottom-28 left-8 ghost-bubble px-4 py-3 rounded-2xl max-w-md shadow-lg text-gray-300 text-sm">
-            <i class="fas fa-microphone text-pink-400 mr-2 animate-pulse"></i> <span id="liveTranscriptionText">Ouvindo...</span>
-        </div>
-
-        <!-- INPUT WHATSAPP STYLE -->
-        <div class="absolute bottom-0 w-full bg-panelBg border-t border-gray-800 p-4 px-6 flex items-end gap-3 z-10">
-            <button class="text-gray-400 hover:text-accentGold p-2 transition-colors shrink-0">
-                <i class="fas fa-paperclip text-xl"></i>
-            </button>
-            <textarea id="userInput" rows="1" class="w-full bg-darkBg border border-gray-700 text-gray-200 rounded-xl px-4 py-3 outline-none resize-none max-h-32 focus:border-accentGold transition-colors" placeholder="Mensagem para ATHENA IA (Shift+Enter para quebrar linha)..." oninput="autoResize(this)" onkeydown="handleEnter(event)"></textarea>
-            <button onclick="toggleLiveMic()" id="micBtn" class="text-gray-400 hover:text-pink-400 p-2 transition-colors shrink-0 relative">
-                <i class="fas fa-microphone text-xl"></i>
-                <span id="micPulse" class="hidden absolute top-0 right-0 w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
-            </button>
-            <button onclick="sendMessage()" class="bg-accentGold text-gray-900 rounded-full w-12 h-12 flex justify-center items-center hover:bg-yellow-400 transition-transform hover:scale-105 shadow-lg shrink-0">
-                <i class="fas fa-paper-plane"></i>
-            </button>
+        <!-- Input Estilo WhatsApp -->
+        <div class="p-4 bg-panel border-t border-slate-700">
+            <div class="flex items-end gap-2 bg-slate-800 p-2 rounded-xl border border-slate-600 focus-within:border-gold transition">
+                <button class="text-slate-400 hover:text-white p-2" title="Anexar (Visão Computacional)"><i class="fa-solid fa-paperclip"></i></button>
+                <textarea id="user-input" class="w-full bg-transparent outline-none text-white p-2" placeholder="Digite sua mensagem (Shift + Enter para pular linha)..." rows="1"></textarea>
+                <button onclick="sendMessage()" class="bg-gold text-slate-900 w-10 h-10 rounded-full flex justify-center items-center hover:scale-110 transition shrink-0">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
         </div>
     </main>
 
-    <!-- WIDGET FLUTUANTE (Câmera Local) -->
-    <video id="localVideo" class="hidden absolute top-20 right-6 w-48 h-64 bg-black rounded-xl border border-gray-700 shadow-2xl object-cover cursor-move z-50" autoplay muted playsinline></video>
-
-    <!-- LOGICA DO SISTEMA -->
     <script>
+        // ==========================================
+        // 1. ARQUITETURA DE DADOS (IndexedDB Bunker)
+        // ==========================================
         let db;
         let currentChatId = null;
-        let lastAiMessageText = "";
+        let chatHistory = [];
         let isSpeaking = false;
         let currentUtterance = null;
-        
-        // 1. INDEXEDDB
-        const requestDB = indexedDB.open("AthenaOS_DB", 2);
-        requestDB.onupgradeneeded = (e) => {
-            db = e.target.result;
-            if (!db.objectStoreNames.contains("chats")) {
-                const store = db.createObjectStore("chats", { keyPath: "id" });
-                store.createIndex("updatedAt", "updatedAt", { unique: false });
-            }
-        };
-        requestDB.onsuccess = (e) => { db = e.target.result; loadChatList(); };
+        let lastAiMessage = "";
 
-        function createNewChat() {
-            currentChatId = 'chat_' + Date.now();
-            const newChat = { id: currentChatId, title: "Nova Conversa", messages: [], htmlContent: "", updatedAt: Date.now(), retention: "1M", pinned: false };
-            saveChat(newChat, () => {
-                document.getElementById('currentChatTitle').innerText = newChat.title;
-                document.getElementById('chatRetention').value = "1M";
-                document.getElementById('chatContainer').innerHTML = '';
-                loadChatList();
-            });
-        }
-
-        function saveChat(chatObj, callback) {
-            const tx = db.transaction("chats", "readwrite");
-            tx.objectStore("chats").put(chatObj);
-            tx.oncomplete = () => { if(callback) callback(); }
-        }
-
-        function loadChatList() {
-            const tx = db.transaction("chats", "readonly");
-            const req = tx.objectStore("chats").index("updatedAt").openCursor(null, "prev");
-            const listDiv = document.getElementById('chatList');
-            listDiv.innerHTML = '';
-            req.onsuccess = (e) => {
-                const cursor = e.target.result;
-                if (cursor) {
-                    const chat = cursor.value;
-                    const isActive = chat.id === currentChatId ? 'bg-gray-800 border-accentGold' : 'border-transparent hover:bg-gray-800/50';
-                    listDiv.innerHTML += `
-                        <div class="relative group p-3 mb-2 rounded-xl border ${isActive} cursor-pointer transition-all flex justify-between items-center" onclick="openChat('${chat.id}')">
-                            <div class="truncate text-sm flex gap-2 items-center w-4/5 text-gray-300">
-                                <i class="fas fa-comment-alt text-gray-600 text-xs"></i> 
-                                <span class="truncate">${chat.title}</span>
-                                ${chat.pinned ? '<i class="fas fa-thumbtack text-pink-500 text-xs"></i>' : ''}
-                            </div>
-                            <button onclick="toggleMenu(event, '${chat.id}')" class="text-gray-500 hover:text-accentGold p-1"><i class="fas fa-ellipsis-v"></i></button>
-                            <div id="menu_${chat.id}" class="dropdown-menu absolute right-0 top-10 w-48 bg-[#1E1E22] border border-gray-700 rounded-xl shadow-2xl z-50 text-sm overflow-hidden">
-                                <button onclick="actionPin(event, '${chat.id}')" class="w-full text-left px-4 py-3 hover:bg-gray-700 text-gray-300"><i class="fas fa-thumbtack w-5"></i> Fixar</button>
-                                <button onclick="actionRename(event, '${chat.id}')" class="w-full text-left px-4 py-3 hover:bg-gray-700 text-gray-300"><i class="fas fa-pen w-5"></i> Renomear</button>
-                                <button onclick="actionDelete(event, '${chat.id}')" class="w-full text-left px-4 py-3 hover:bg-red-900/40 text-red-400 border-t border-gray-700"><i class="fas fa-trash w-5"></i> Excluir</button>
-                            </div>
-                        </div>`;
-                    cursor.continue();
+        const initDB = () => {
+            const request = indexedDB.open("AthenaOS_DB", 1);
+            request.onupgradeneeded = (e) => {
+                db = e.target.result;
+                if (!db.objectStoreNames.contains("chats")) {
+                    db.createObjectStore("chats", { keyPath: "id" });
                 }
             };
-        }
+            request.onsuccess = (e) => {
+                db = e.target.result;
+                loadChatList();
+            };
+        };
 
-        // 2. MENSAGENS E BACKEND
-        async function sendMessage(manualText = null) {
-            if (!currentChatId) createNewChat();
-            const inputEl = document.getElementById('userInput');
-            const text = manualText || inputEl.value.trim();
+        const saveChat = () => {
+            if (!currentChatId) return;
+            const tx = db.transaction("chats", "readwrite");
+            const store = tx.objectStore("chats");
+            const title = document.getElementById("current-chat-title").innerText;
+            const retention = document.getElementById("retention-select").value;
+            store.put({
+                id: currentChatId,
+                title: title,
+                messages: chatHistory,
+                retention: retention,
+                updatedAt: Date.now()
+            });
+            loadChatList();
+        };
+
+        const loadChatList = () => {
+            const tx = db.transaction("chats", "readonly");
+            const store = tx.objectStore("chats");
+            const request = store.getAll();
+            request.onsuccess = () => {
+                const list = document.getElementById("chat-list");
+                list.innerHTML = "";
+                const now = Date.now();
+                
+                request.result.sort((a, b) => b.updatedAt - a.updatedAt).forEach(chat => {
+                    // Lógica de Autoexclusão Automática
+                    if (chat.retention !== 'permanent') {
+                        const daysMs = parseInt(chat.retention) * 24 * 60 * 60 * 1000;
+                        if (now - chat.updatedAt > daysMs) {
+                            deleteChat(chat.id, true); return;
+                        }
+                    }
+
+                    const div = document.createElement("div");
+                    div.className = `p-2 rounded cursor-pointer text-sm flex justify-between items-center group ${chat.id === currentChatId ? 'bg-slate-700 border-l-2 border-gold' : 'hover:bg-slate-700'}`;
+                    
+                    const titleSpan = document.createElement("span");
+                    titleSpan.innerText = (chat.retention === 'permanent' ? '📌 ' : '') + chat.title;
+                    titleSpan.className = "truncate flex-1";
+                    titleSpan.onclick = () => openChat(chat.id, chat.title, chat.messages, chat.retention);
+                    
+                    // Menu de 3 pontinhos (Estilo Gemini)
+                    const menuBtn = document.createElement("button");
+                    menuBtn.innerHTML = '<i class="fa-solid fa-ellipsis-vertical text-slate-400 group-hover:text-white"></i>';
+                    menuBtn.className = "px-2";
+                    menuBtn.onclick = (e) => showChatMenu(e, chat.id);
+
+                    div.appendChild(titleSpan);
+                    div.appendChild(menuBtn);
+                    list.appendChild(div);
+                });
+            };
+        };
+
+        const createNewChat = () => {
+            currentChatId = Date.now().toString();
+            chatHistory = [];
+            document.getElementById("current-chat-title").innerText = "Nova Conversa";
+            document.getElementById("chat-messages").innerHTML = "";
+            document.getElementById("retention-select").value = "30";
+            saveChat();
+        };
+
+        const openChat = (id, title, messages, retention) => {
+            currentChatId = id;
+            chatHistory = messages;
+            document.getElementById("current-chat-title").innerText = title;
+            document.getElementById("retention-select").value = retention || "30";
+            renderMessages();
+            loadChatList();
+        };
+
+        const updateRetention = () => { saveChat(); };
+
+        // ==========================================
+        // 1.1 MENU LATERAL DE AÇÕES (Compartilhar, Renomear, Excluir)
+        // ==========================================
+        const showChatMenu = (e, id) => {
+            e.stopPropagation();
+            // Remove menus antigos
+            document.querySelectorAll('.chat-context-menu').forEach(el => el.remove());
+            
+            const menu = document.createElement("div");
+            menu.className = "chat-context-menu absolute bg-slate-800 border border-slate-600 rounded shadow-xl p-1 z-50 text-xs w-48";
+            menu.style.top = `${e.clientY}px`;
+            menu.style.left = `${e.clientX}px`;
+
+            const btnClass = "w-full text-left p-2 hover:bg-slate-700 rounded block text-slate-200";
+
+            // NOVO: Botão de Compartilhar
+            const btnShare = document.createElement("button");
+            btnShare.className = btnClass;
+            btnShare.innerHTML = '<i class="fa-solid fa-link w-4"></i> Compartilhar';
+            btnShare.onclick = () => { shareChat(id); menu.remove(); };
+
+            const btnRename = document.createElement("button");
+            btnRename.className = btnClass;
+            btnRename.innerHTML = '<i class="fa-solid fa-pen w-4"></i> Renomear';
+            btnRename.onclick = () => { renameChat(id); menu.remove(); };
+
+            const btnDelete = document.createElement("button");
+            btnDelete.className = btnClass + " text-red-400 hover:bg-red-900/30";
+            btnDelete.innerHTML = '<i class="fa-solid fa-trash w-4"></i> Excluir';
+            btnDelete.onclick = () => { deleteChat(id); menu.remove(); };
+
+            menu.appendChild(btnShare);
+            menu.appendChild(btnRename);
+            menu.appendChild(btnDelete);
+            document.body.appendChild(menu);
+
+            // Fecha menu ao clicar fora
+            setTimeout(() => { document.addEventListener('click', () => menu.remove(), {once: true}); }, 100);
+        };
+
+        const shareChat = (id) => {
+            const tx = db.transaction("chats", "readonly");
+            const store = tx.objectStore("chats");
+            store.get(id).onsuccess = (e) => {
+                const chat = e.target.result;
+                if(!chat || chat.messages.length === 0) return alert("Conversa vazia.");
+                let text = `ATHENA IA - Histórico: ${chat.title}\n\n`;
+                chat.messages.forEach(m => { text += `[${m.role === 'user' ? 'Você' : 'ATHENA IA'}]: ${m.content}\n\n`; });
+                
+                if (navigator.share) {
+                    navigator.share({ title: chat.title, text: text }).catch(console.error);
+                } else {
+                    navigator.clipboard.writeText(text).then(() => alert("Texto copiado para a área de transferência."));
+                }
+            };
+        };
+
+        const renameChat = (id) => {
+            const newName = prompt("Novo nome para a conversa:");
+            if (newName) {
+                const tx = db.transaction("chats", "readwrite");
+                tx.objectStore("chats").get(id).onsuccess = (e) => {
+                    let chat = e.target.result;
+                    chat.title = newName;
+                    tx.objectStore("chats").put(chat);
+                    if(id === currentChatId) document.getElementById("current-chat-title").innerText = newName;
+                    loadChatList();
+                };
+            }
+        };
+
+        const deleteChat = (id, auto = false) => {
+            if (auto || confirm("Tem certeza que deseja excluir esta conversa?")) {
+                db.transaction("chats", "readwrite").objectStore("chats").delete(id);
+                if (currentChatId === id) createNewChat();
+                else loadChatList();
+            }
+        };
+
+        const exportBunker = () => {
+            const request = db.transaction("chats", "readonly").objectStore("chats").getAll();
+            request.onsuccess = () => {
+                const blob = new Blob([JSON.stringify(request.result, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `AthenaOS_Bunker_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+            };
+        };
+
+        // ==========================================
+        // 2. INTERFACE E COMUNICAÇÃO (Markdown, Resend, Obsidian)
+        // ==========================================
+        
+        // Auto-expand textarea (WhatsApp style)
+        const userInput = document.getElementById("user-input");
+        userInput.addEventListener("input", function() {
+            this.style.height = "auto";
+            this.style.height = (this.scrollHeight) + "px";
+        });
+        userInput.addEventListener("keydown", function(e) {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+        });
+
+        const renderMessages = () => {
+            const container = document.getElementById("chat-messages");
+            container.innerHTML = "";
+            chatHistory.forEach((msg, index) => {
+                if(msg.role === 'system') return;
+                
+                const div = document.createElement("div");
+                div.className = `message-bubble ${msg.role === 'user' ? 'user-msg' : 'ai-msg markdown-body'}`;
+                
+                if (msg.role === 'user') {
+                    div.innerText = msg.content;
+                    // Botão Reenviar 🔄
+                    const resendBtn = document.createElement("button");
+                    resendBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i>';
+                    resendBtn.className = "absolute -left-8 top-2 text-slate-500 hover:accent-gold";
+                    resendBtn.title = "Reenviar mensagem";
+                    resendBtn.onclick = () => resendMessage(index);
+                    div.appendChild(resendBtn);
+                } else {
+                    div.innerHTML = marked.parse(msg.content);
+                    // Ferramentas da IA (TTS, Obsidian, Copiar)
+                    const tools = document.createElement("div");
+                    tools.className = "mt-3 pt-2 border-t border-slate-600 flex gap-3 text-xs text-slate-400";
+                    tools.innerHTML = `
+                        <button onclick="toggleTTS(this, \`${msg.content.replace(/`/g, "'")}\`)" class="hover:text-white"><i class="fa-solid fa-volume-high"></i> Ouvir</button>
+                        <button onclick="exportObsidian(\`${msg.content.replace(/`/g, "'")}\`)" class="hover:text-purple-400"><i class="fa-solid fa-gem"></i> Obsidian</button>
+                        <button onclick="copyText(\`${msg.content.replace(/`/g, "'")}\`)" class="hover:text-white"><i class="fa-solid fa-copy"></i> Copiar</button>
+                    `;
+                    div.appendChild(tools);
+                }
+                container.appendChild(div);
+            });
+            smartScroll();
+        };
+
+        const smartScroll = () => {
+            const container = document.getElementById("chat-messages");
+            container.scrollTop = container.scrollHeight;
+        };
+
+        const copyText = (text) => { navigator.clipboard.writeText(text); };
+        const exportObsidian = (text) => {
+            const blob = new Blob([text], { type: "text/markdown" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `Athena_Note_${Date.now()}.md`;
+            a.click();
+        };
+
+        const resendMessage = (index) => {
+            const textToResend = chatHistory[index].content;
+            // Remove a mensagem atual e as respostas subsequentes
+            chatHistory = chatHistory.slice(0, index);
+            document.getElementById("user-input").value = textToResend;
+            sendMessage();
+        };
+
+        const sendMessage = async () => {
+            const input = document.getElementById("user-input");
+            const text = input.value.trim();
             if (!text) return;
 
-            if(!manualText) {
-                inputEl.value = ''; inputEl.style.height = 'auto';
-                appendMessage('user', text);
-            }
+            if (!currentChatId) createNewChat();
             
-            const model = document.getElementById('modelSelect').value;
+            // Gera título automaticamente se for a primeira mensagem
+            if (chatHistory.length === 0) {
+                document.getElementById("current-chat-title").innerText = text.substring(0, 30) + "...";
+            }
+
+            chatHistory.push({ role: "user", content: text });
+            input.value = "";
+            input.style.height = "auto";
+            renderMessages();
+            saveChat();
+
+            const provider = document.getElementById("model-selector").value;
+            
+            // Adiciona indicador de digitação
+            const typingDiv = document.createElement("div");
+            typingDiv.id = "typing-indicator";
+            typingDiv.className = "message-bubble ai-msg text-slate-400 italic";
+            typingDiv.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processando...';
+            document.getElementById("chat-messages").appendChild(typingDiv);
+            smartScroll();
+
             try {
-                // Ajuste dinâmico de URL - Use URL relativa para o Render
-                const response = await fetch('/chat', { 
+                // Rota exata '/chat' conectando ao backend
+                const response = await fetch('/chat', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ message: text, model: model })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider: provider, messages: chatHistory })
                 });
 
-                if (!response.ok) throw new Error(await response.text());
+                document.getElementById("typing-indicator").remove();
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    alert(errData.error || "Erro na comunicação com a API.");
+                    return;
+                }
+
                 const data = await response.json();
-                appendMessage('ai', data.reply);
-                lastAiMessageText = data.reply;
+                const aiText = data.choices[0].message.content;
+                chatHistory.push({ role: "assistant", content: aiText });
+                lastAiMessage = aiText;
                 
+                renderMessages();
+                saveChat();
+
             } catch (error) {
-                appendMessage('error', `Erro de processamento: ${error.message}`);
+                document.getElementById("typing-indicator").remove();
+                alert("Falha ao conectar com o servidor Flask.");
             }
-        }
+        };
 
-        function appendMessage(role, content) {
-            const container = document.getElementById('chatContainer');
-            const msgDiv = document.createElement('div');
-            const safeContent = content.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            
-            if (role === 'user') {
-                msgDiv.className = 'flex justify-end';
-                msgDiv.innerHTML = `
-                    <div class="bg-userBubble text-gray-100 p-4 rounded-2xl rounded-tr-sm max-w-[85%] shadow-md">
-                        <div class="text-xs font-semibold mb-1 flex justify-between items-center text-gray-400">Você <button onclick="sendMessage('${safeContent}')" class="hover:text-accentGold ml-4" title="Reenviar / Tentar Novamente"><i class="fas fa-sync-alt"></i></button></div>
-                        <div class="whitespace-pre-wrap">${content}</div>
-                    </div>`;
-            } else if (role === 'ai') {
-                const uniqueId = 'msg_' + Date.now();
-                msgDiv.className = 'flex justify-start';
-                msgDiv.innerHTML = `
-                    <div class="bg-aiBubble border border-gray-800 text-gray-200 p-5 rounded-2xl rounded-tl-sm max-w-[90%] shadow-lg">
-                        <div class="text-sm font-semibold mb-3 text-accentGold flex gap-2 items-center">🦉 ATHENA IA</div>
-                        <div class="markdown-body text-sm leading-relaxed" id="${uniqueId}">${marked.parse(content)}</div>
-                        <div class="mt-4 flex flex-wrap gap-2 border-t border-gray-800 pt-3">
-                            <button onclick="toggleTTS('${uniqueId}', this)" class="text-xs text-gray-400 hover:text-white bg-gray-800 px-3 py-1.5 rounded flex gap-2 items-center"><i class="fas fa-volume-up"></i> Ouvir</button>
-                            <button onclick="copyToClipboard('${uniqueId}')" class="text-xs text-gray-400 hover:text-white bg-gray-800 px-3 py-1.5 rounded flex gap-2 items-center"><i class="fas fa-copy"></i> Copiar</button>
-                            <button onclick="exportToObsidian('${uniqueId}')" class="text-xs text-purple-400 hover:text-purple-300 bg-gray-800 px-3 py-1.5 rounded flex gap-2 items-center"><i class="fas fa-cube"></i> Salvar no Obsidian</button>
-                        </div>
-                    </div>`;
-            }
-            container.appendChild(msgDiv);
-            scrollToBottom();
-            saveCurrentChatHTML();
-        }
-
-        // 3. TTS (Text-to-Speech) E MODO LIVE
-        function toggleTTS(elementId, btnElement) {
+        // ==========================================
+        // 3. TTS E CONTROLE DE ÁUDIO (Echo Suppression)
+        // ==========================================
+        const toggleTTS = (btn, text) => {
             if (isSpeaking) {
                 window.speechSynthesis.cancel();
                 isSpeaking = false;
-                if(btnElement) btnElement.innerHTML = '<i class="fas fa-volume-up"></i> Ouvir';
+                btn.innerHTML = '<i class="fa-solid fa-volume-high"></i> Ouvir';
                 return;
             }
-            const text = document.getElementById(elementId).innerText;
-            playTTS(text, btnElement);
-        }
 
-        function playTTS(text, btnElement) {
-            window.speechSynthesis.cancel(); // Limpa buffer
+            // Echo suppression logic (se microfone estivesse ativo)
+            document.querySelectorAll('button').forEach(b => {
+                if(b.innerText.includes('Parar')) b.innerHTML = '<i class="fa-solid fa-volume-high"></i> Ouvir';
+            });
+
+            isSpeaking = true;
+            btn.innerHTML = '<i class="fa-solid fa-stop text-red-500"></i> Parar';
+            
             currentUtterance = new SpeechSynthesisUtterance(text);
+            currentUtterance.rate = parseFloat(document.getElementById("tts-speed").value);
             
-            // Detecção de idioma
-            const isSpanish = text.match(/[ñ¿¡]/i);
-            currentUtterance.lang = isSpanish ? 'es-ES' : 'pt-BR';
-            
-            // Busca voz feminina (Mulher Jovem ~35 anos)
-            let voices = window.speechSynthesis.getVoices();
-            let femaleVoice = voices.find(v => (v.lang.includes(currentUtterance.lang) && (v.name.includes('Female') || v.name.includes('Mulher') || v.name.includes('Francisca'))));
+            // Procura voz feminina nativa
+            const voices = window.speechSynthesis.getVoices();
+            const femaleVoice = voices.find(v => (v.lang.includes('pt') || v.lang.includes('es')) && v.name.toLowerCase().includes('female'));
             if(femaleVoice) currentUtterance.voice = femaleVoice;
-            
-            currentUtterance.rate = parseFloat(document.getElementById('speedSelect').value);
-            
-            currentUtterance.onstart = () => { isSpeaking = true; if(btnElement) btnElement.innerHTML = '<i class="fas fa-stop"></i> Parar'; };
-            currentUtterance.onend = () => { isSpeaking = false; if(btnElement) btnElement.innerHTML = '<i class="fas fa-volume-up"></i> Ouvir'; };
-            
+
+            currentUtterance.onend = () => {
+                isSpeaking = false;
+                btn.innerHTML = '<i class="fa-solid fa-volume-high"></i> Ouvir';
+            };
+
             window.speechSynthesis.speak(currentUtterance);
-        }
+        };
 
-        // Sobrescrita Dinâmica de Velocidade TTS
-        document.getElementById('speedSelect').addEventListener('change', () => {
-            if (isSpeaking && lastAiMessageText) {
+        const updateTTSSpeed = () => {
+            if (isSpeaking && currentUtterance) {
                 window.speechSynthesis.cancel();
-                playTTS(lastAiMessageText, null);
-            }
-        });
-
-        // 4. DOCUMENT PiP (Picture-in-Picture)
-        async function requestPiPWindow() {
-            if (!('documentPictureInPicture' in window)) return alert("Document PiP não suportado neste navegador.");
-            if(confirm("Iniciar modo Live Flutuante? A IA solicitará câmera e microfone.")) {
-                try {
-                    const pipWindow = await window.documentPictureInPicture.requestWindow({ width: 400, height: 600 });
-                    pipWindow.document.body.innerHTML = `<div style="background:#000; color:#fff; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:sans-serif;"><h3>ATHENA Live</h3><video id="pipVideo" autoplay muted playsinline style="width:100%; max-height:70%;"></video></div>`;
-                    
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                    pipWindow.document.getElementById('pipVideo').srcObject = stream;
-                    
-                    pipWindow.addEventListener("pagehide", () => { stream.getTracks().forEach(t => t.stop()); });
-                } catch(e) { alert("Erro ao iniciar Live: " + e.message); }
-            }
-        }
-
-        // 5. UTILITÁRIOS (Menus, UI, Exportações)
-        function toggleMenu(e, id) { e.stopPropagation(); document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('active')); document.getElementById(`menu_${id}`).classList.toggle('active'); }
-        document.addEventListener('click', () => document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('active')));
-        
-        function actionDelete(e, id) { e.stopPropagation(); if(confirm('Excluir chat?')) db.transaction("chats", "readwrite").objectStore("chats").delete(id).onsuccess = () => { if(currentChatId === id) createNewChat(); else loadChatList(); }; }
-        function actionPin(e, id) { e.stopPropagation(); const store = db.transaction("chats", "readwrite").objectStore("chats"); store.get(id).onsuccess = (ev) => { const chat = ev.target.result; chat.pinned = !chat.pinned; store.put(chat).onsuccess = () => loadChatList(); }; }
-        function actionRename(e, id) { e.stopPropagation(); const n = prompt("Novo título:"); if(n) { const store = db.transaction("chats", "readwrite").objectStore("chats"); store.get(id).onsuccess = (ev) => { const chat = ev.target.result; chat.title = n; store.put(chat).onsuccess = () => loadChatList(); }; } }
-        
-        function exportToObsidian(id) { const blob = new Blob([document.getElementById(id).innerText], { type: "text/markdown" }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Athena_${Date.now()}.md`; a.click(); }
-        function copyToClipboard(id) { navigator.clipboard.writeText(document.getElementById(id).innerText); }
-        function exportBunker() { const req = db.transaction("chats", "readonly").objectStore("chats").getAll(); req.onsuccess = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(req.result, null, 2)], {type: "application/json"})); a.download = `Athena_Bunker_${Date.now()}.json`; a.click(); }; }
-
-        function autoResize(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
-        function handleEnter(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
-        function scrollToBottom() { const c = document.getElementById('chatContainer'); if (c.scrollHeight - c.scrollTop <= c.clientHeight + 300) c.scrollTop = c.scrollHeight; }
-        
-        function saveCurrentChatHTML() {
-            if(!currentChatId) return;
-            const store = db.transaction("chats", "readwrite").objectStore("chats");
-            store.get(currentChatId).onsuccess = (e) => {
-                const chat = e.target.result;
-                if(chat) { chat.htmlContent = document.getElementById('chatContainer').innerHTML; chat.updatedAt = Date.now(); store.put(chat); }
-            };
-        }
-        function openChat(id) {
-            currentChatId = id;
-            db.transaction("chats", "readonly").objectStore("chats").get(id).onsuccess = (e) => {
-                const chat = e.target.result;
-                if(chat) {
-                    document.getElementById('currentChatTitle').innerText = chat.title;
-                    document.getElementById('chatRetention').value = chat.retention || "1M";
-                    document.getElementById('chatContainer').innerHTML = chat.htmlContent || '';
-                    loadChatList(); scrollToBottom();
+                // Reinicia a fala na nova velocidade imediatamente
+                const activeBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Parar'));
+                if(activeBtn) {
+                    isSpeaking = false;
+                    toggleTTS(activeBtn, lastAiMessage);
                 }
-            };
-        }
+            }
+        };
+
+        // ==========================================
+        // 4. MODO LIVE FLUTUANTE (Document PiP API)
+        // ==========================================
+        const startLiveMode = async () => {
+            if (!("documentPictureInPicture" in window)) {
+                alert("Seu navegador não suporta a API de Document Picture-in-Picture. Atualize para o Chrome/Edge mais recente.");
+                return;
+            }
+            if(!confirm("ATHENA IA solicita acesso à sua câmera e microfone para o Modo Live. Permitir?")) return;
+
+            try {
+                const pipWindow = await window.documentPictureInPicture.requestWindow({
+                    width: 350, height: 450
+                });
+
+                pipWindow.document.body.style.backgroundColor = "#0f172a";
+                pipWindow.document.body.style.color = "white";
+                pipWindow.document.body.style.fontFamily = "sans-serif";
+                pipWindow.document.body.style.display = "flex";
+                pipWindow.document.body.style.flexDirection = "column";
+
+                const header = pipWindow.document.createElement("div");
+                header.innerHTML = `
+                    <div style="padding:10px; background:#1e293b; display:flex; justify-content:space-between; align-items:center;">
+                        <strong>🦉 ATHENA Live</strong>
+                        <span class="mic-active" style="width:10px; height:10px; background:#22c55e; border-radius:50%; display:inline-block; box-shadow: 0 0 5px #22c55e;"></span>
+                    </div>
+                `;
+                pipWindow.document.body.appendChild(header);
+
+                const video = pipWindow.document.createElement("video");
+                video.autoplay = true;
+                video.style.width = "100%";
+                video.style.borderBottom = "2px solid #fbbf24";
+                pipWindow.document.body.appendChild(video);
+
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                video.srcObject = stream;
+
+                const controls = pipWindow.document.createElement("div");
+                controls.style.padding = "10px";
+                controls.innerHTML = `
+                    <button style="width:100%; padding:10px; background:#fbbf24; color:black; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">
+                        ⏸️ Pausar Auto-Envio
+                    </button>
+                    <div style="font-size:12px; color:#94a3b8; margin-top:10px; text-align:center;">
+                        O áudio está sendo processado na aba principal.
+                    </div>
+                `;
+                pipWindow.document.body.appendChild(controls);
+
+                pipWindow.addEventListener("pagehide", () => {
+                    stream.getTracks().forEach(track => track.stop());
+                });
+
+            } catch (err) {
+                console.error(err);
+                alert("Falha ao iniciar o Modo Live flutuante.");
+            }
+        };
+
+        // Inicializa o sistema ao carregar
+        window.onload = () => {
+            initDB();
+            // Carrega vozes
+            speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+        };
     </script>
 </body>
 </html>

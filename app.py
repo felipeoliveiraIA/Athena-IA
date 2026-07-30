@@ -50,13 +50,19 @@ def chat():
             
             response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
             
-            # Novo bloco cirúrgico de tratamento de erros
+            # LÓGICA DE AUTO-RETRY: Se o modelo :free não existir mais (Erro 404), tenta o modelo normal silenciosamente
+            if response.status_code == 404 and ':free' in selected_model:
+                fallback_model = selected_model.replace(':free', '')
+                payload['model'] = fallback_model
+                response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+
+            # Bloco cirúrgico de tratamento de erros
             if not response.ok:
                 if response.status_code == 402:
-                    return jsonify({'error': 'Erro 402: Limite de uso gratuito atingido. Tente usar um dos modelos estáveis da lista.'}), 402
+                    return jsonify({'error': 'Erro 402: Limite de uso gratuito atingido ou modelo pago. Tente usar outro modelo Free da lista.'}), 402
                 
                 try:
-                    # Captura o motivo real da falha (ex: Model not found)
+                    # Captura o motivo real da falha
                     error_data = response.json()
                     error_msg = error_data.get('error', {}).get('message', f'Status {response.status_code}')
                     return jsonify({'error': f'Recusa do OpenRouter (Erro {response.status_code}): {error_msg}. Tente um modelo Estável.'}), response.status_code

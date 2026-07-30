@@ -17,14 +17,16 @@ def home():
 def chat():
     data = request.json
     user_message = data.get('message', '')
-    model_provider = data.get('model', 'cloud') # 'cloud' ou 'local'
+    # Agora o frontend envia o ID real do modelo do OpenRouter ou 'local'
+    selected_model = data.get('model', 'qwen/qwen-2.5-coder-32b-instruct:free') 
     system_prompt = data.get('system_prompt', 'Você é a ATHENA IA. Responda em Markdown limpo.')
 
     if not user_message:
         return jsonify({'error': 'Mensagem vazia.'}), 400
 
     try:
-        if model_provider == 'cloud':
+        # Se o modelo NÃO for o local, aciona a nuvem do OpenRouter
+        if selected_model != 'local':
             if not OPENROUTER_API_KEY:
                 return jsonify({'error': 'Chave da API OpenRouter não configurada no servidor.'}), 500
             
@@ -33,7 +35,7 @@ def chat():
                 "Content-Type": "application/json"
             }
             payload = {
-                "model": "qwen/qwen-2.5-coder-32b-instruct",
+                "model": selected_model, # Injeta dinamicamente a IA gratuita escolhida na lista
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message}
@@ -44,14 +46,14 @@ def chat():
             response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
             
             if response.status_code == 402:
-                return jsonify({'error': 'Erro 402: Fundos esgotados no OpenRouter.'}), 402
+                return jsonify({'error': 'Erro 402: Limite de uso gratuito atingido nesta IA. Tente outra da lista.'}), 402
             
             response.raise_for_status()
             ai_reply = response.json()['choices'][0]['message']['content']
             return jsonify({'reply': ai_reply})
 
-        elif model_provider == 'local':
-            # LM Studio Local Bridge
+        # Se for HD Local, roda no LM Studio
+        elif selected_model == 'local':
             payload = {
                 "messages": [
                     {"role": "system", "content": system_prompt},
@@ -66,7 +68,7 @@ def chat():
             return jsonify({'reply': ai_reply})
 
     except requests.exceptions.ConnectionError:
-        return jsonify({'error': 'Falha de Conexão. Se estiver usando o HD Local, verifique se o LM Studio está rodando na porta 1234.'}), 503
+        return jsonify({'error': 'Falha de Conexão. Verifique a rede ou se o LM Studio está rodando (caso uso local).'}), 503
     except Exception as e:
         return jsonify({'error': f'Erro no servidor: {str(e)}'}), 500
 

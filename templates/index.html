@@ -19,7 +19,7 @@
 </head>
 <body class="bg-[#0f1219] text-gray-200 h-screen flex overflow-hidden font-sans">
 
-    <!-- Barra Lateral -->
+<!-- Barra Lateral -->
     <aside class="bg-[#151922] w-72 flex flex-col h-full border-r border-gray-700 shadow-xl z-10 shrink-0">
         <div class="p-5 flex items-center gap-2 font-bold text-[#FACC15] text-2xl tracking-wide">
             🦉 ATHENA IA <span class="text-xs bg-orange-900 text-orange-200 px-2 py-0.5 rounded-full ml-1 align-middle">v5.2 OS</span>
@@ -38,12 +38,17 @@
         </div>
 
         <div class="flex-1 overflow-y-auto px-4" id="chat-list">
-            <!-- Lista de chats do IndexedDB renderizada aqui -->
+            <!-- Lista de chats do LocalStorage renderizada aqui -->
         </div>
 
-        <div class="p-4 border-t border-gray-700">
+        <div class="p-4 border-t border-gray-700 flex flex-col gap-2">
             <button onclick="exportBunker()" class="w-full bg-gray-800 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition flex items-center justify-center gap-2 text-sm border border-gray-600">
                 📥 Backup Bunker (.json)
+            </button>
+            <!-- NOVO BOTÃO DE IMPORTAÇÃO -->
+            <input type="file" id="import-bunker-file" class="hidden" accept=".json" onchange="importBunker(event)">
+            <button onclick="document.getElementById('import-bunker-file').click()" class="w-full bg-gray-800 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition flex items-center justify-center gap-2 text-sm border border-gray-600">
+                📂 Importar Bunker (.json)
             </button>
         </div>
     </aside>
@@ -51,27 +56,29 @@
     <!-- Área Principal de Chat -->
     <main class="flex-1 flex flex-col h-full relative bg-[#0f1219]">
         <!-- Cabeçalho de Controles -->
-        <header class="bg-[#151922] p-4 flex justify-between items-center border-b border-gray-700 shadow-sm">
+        <header class="bg-[#151922] p-4 flex justify-between items-center border-b border-gray-700 shadow-sm z-20">
             <div class="flex items-center gap-3">
                 <span id="current-chat-title" class="font-semibold text-lg text-gray-100">Nova Conversa</span>
                 <select id="retention-select" class="bg-gray-800 text-sm text-gray-300 rounded px-2 py-1 border border-gray-600">
                     <option value="1">Reter: 1 Mês</option>
+                    <option value="2">Reter: 2 Meses</option>
                     <option value="3">Reter: 3 Meses</option>
+                    <option value="6">Reter: 6 Meses</option>
                     <option value="12">Reter: 1 Ano</option>
+                    <option value="24">Reter: 2 Anos</option>
                     <option value="999">📌 Fixar Permanentemente</option>
                 </select>
             </div>
             <div class="flex items-center gap-3">
+                <!-- LISTA DE MODELOS ATUALIZADA (Sem modelos experimentais mortos) -->
                 <select id="model-select" class="bg-gray-800 text-sm text-gray-300 rounded px-3 py-2 border border-gray-600">
-                    <!-- Removido V3 e ajustado Gemini para slug padrão -->
-                    <option value="google/gemini-exp-1206:free">☁️ Gemini Flash (Free Estável)</option>
-                    <option value="meta-llama/llama-3.2-3b-instruct:free">☁️ Llama 3.2 3B (Free Estável)</option>
+                    <option value="google/gemini-2.0-flash-lite-preview-02-05:free">☁️ Gemini 2.0 Flash (Free Estável)</option>
+                    <option value="meta-llama/llama-3.3-70b-instruct:free">☁️ Llama 3.3 70B (Free Estável)</option>
                     <option value="qwen/qwen-2.5-coder-32b-instruct:free">☁️ Qwen 2.5 Coder (Free)</option>
                     <option value="deepseek/deepseek-r1:free">☁️ DeepSeek R1 (Free)</option>
                     <option value="local">💻 HD Local (LM Studio)</option>
                 </select>
                 <select id="voice-speed" class="bg-gray-800 text-sm text-gray-300 rounded px-2 py-2 border border-gray-600">
-                    <!-- Opções de velocidade restauradas e expandidas -->
                     <option value="0.75">Voz: 0.75x</option>
                     <option value="1.0" selected>Voz: 1.0x</option>
                     <option value="1.25">Voz: 1.25x</option>
@@ -81,7 +88,7 @@
                     <option value="4.0">Voz: 4.0x</option>
                 </select>
                 <button onclick="toggleLiveMode()" class="bg-[#FACC15] text-black font-bold px-4 py-2 rounded-lg hover:bg-[#EAB308] transition shadow-md flex items-center gap-2">
-                    🎥 Modo Live (PiP)
+                    🎥 Modo Live (Flutuante)
                 </button>
             </div>
         </header>

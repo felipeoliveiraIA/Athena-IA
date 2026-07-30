@@ -93,12 +93,19 @@
             </div>
         </div>
 
-        <!-- Área de Input (WhatsApp Style) -->
-        <div class="absolute bottom-0 w-full bg-gradient-to-t from-[#0f1219] to-transparent pt-10 pb-6 px-6">
+       <!-- Container das Mensagens -->
+        <div id="chat-box" class="flex-1 overflow-y-auto p-6 flex flex-col gap-6 scroll-smooth">
+            <div class="text-center text-gray-500 text-sm mt-10">
+                Sistema ATHENA Iniciado. Base de dados pronta.
+            </div>
+        </div>
+
+        <!-- Área de Input (WhatsApp Style - Corrigido para não sobrepor) -->
+        <div class="w-full bg-[#0f1219] pt-2 pb-6 px-6 shrink-0 z-20 border-t border-gray-800">
             <div class="max-w-4xl mx-auto relative flex items-end bg-[#151922] border border-gray-700 rounded-2xl shadow-2xl p-2">
                 <input type="file" id="file-attachment" class="hidden" accept=".txt,.md,image/png,image/jpeg" onchange="processAttachment(event)">
                 <button onclick="document.getElementById('file-attachment').click()" class="p-3 text-gray-400 hover:text-[#FACC15] transition shrink-0 cursor-pointer" title="Anexar Arquivo">📎</button>
-                <textarea id="user-input" class="flex-1 bg-transparent text-gray-100 p-3 resize-none outline-none max-h-48 min-h-[50px] placeholder-gray-500" placeholder="Mensagem para ATHENA IA (Shift+Enter para quebrar linha)..." rows="1"></textarea>
+                <textarea id="user-input" class="flex-1 bg-transparent text-gray-100 p-3 resize-none outline-none max-h-48 min-h-[50px] placeholder-gray-500" placeholder="Mensagem para ATHENA IA (Cole imagens com Ctrl+V ou Shift+Enter para quebrar linha)..." rows="1"></textarea>
                 <button id="btn-enviar" onclick="handleSend()" class="bg-[#FACC15] text-black p-3 mb-1 mr-1 rounded-full hover:bg-[#EAB308] transition shrink-0 shadow-md">
                     <svg class="w-5 h-5 transform -rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                 </button>
@@ -142,6 +149,47 @@
                 handleSend();
             }
         });
+
+        // --- SUPORTE PARA COLAR IMAGENS (CTRL+V) ---
+        userInput.addEventListener('paste', function(e) {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let index in items) {
+                const item = items[index];
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    processFileLogic(file);
+                }
+            }
+        });
+
+        // --- PROCESSAMENTO DE ANEXOS (Clip e Ctrl+V unificados) ---
+        function processAttachment(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            processFileLogic(file);
+        }
+
+        function processFileLogic(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                if (file.type.startsWith('text/')) {
+                    userInput.value += `\n[Conteúdo do arquivo ${file.name}]:\n${content}\n`;
+                } else if (file.type.startsWith('image/')) {
+                    // Prepara a interface para exibir que a imagem foi anexada
+                    userInput.value += `\n[Imagem Anexada: ${file.name}]\n`;
+                    alert("Imagem anexada com sucesso no frontend! (Lembre-se: Para a IA ler a imagem, o modelo multivisão precisa estar ativo e o backend configurado para base64).");
+                }
+                userInput.style.height = 'auto';
+                userInput.style.height = (userInput.scrollHeight) + 'px';
+            };
+            
+            if (file.type.startsWith('text/')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsDataURL(file);
+            }
+        }
 
         // --- 2. LÓGICA DE ENVIO BLINDADA E RESPOSTA ---
         async function handleSend(textOverride = null) {

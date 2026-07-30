@@ -1,83 +1,76 @@
 import os
 import requests
 from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
 
-app = Flask(__name__, template_folder='templates', static_folder='static')
+app = Flask(__name__)
+CORS(app)
+
+# Busca a chave de forma segura nas variáveis de ambiente do Render
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 
 @app.route('/')
-def index():
+def home():
     return render_template('index.html')
 
-# Rota corrigida para bater exatamente com a requisição do frontend
-@app.route('/chat', methods=['POST'])
+@app.route('/api/chat', methods=['POST'])
 def chat():
-    data = request.json or {}
-    provider = data.get('provider', 'Nuvem (Qwen Coder)')
-    messages = data.get('messages', [])
+    data = request.json
+    user_message = data.get('message', '')
+    model_provider = data.get('model', 'cloud') # 'cloud' ou 'local'
+    system_prompt = data.get('system_prompt', 'Você é a ATHENA IA. Responda em Markdown limpo.')
 
-    if "Local" in provider:
-        try:
-            res = requests.post(
-                "http://127.0.0.1:1234/v1/chat/completions",
-                json={"model": "local-model", "messages": messages, "temperature": 0.7},
-                timeout=10
-            )
-            return jsonify(res.json())
-        except requests.exceptions.ConnectionError:
-            return jsonify({"error": "Servidor local indisponível. Verifique a porta 1234."}), 503
-    else:
-        if not OPENROUTER_API_KEY:
-            return jsonify({"error": "Chave OPENROUTER_API_KEY não configurada no Render."}), 400
+    if not user_message:
+        return jsonify({'error': 'Mensagem vazia.'}), 400
 
-        # Qwen Coder como principal para arquitetura de código, Gemini como secundário
-        if "Qwen" in provider:
-            model_id = "qwen/qwen-2.5-coder-32b-instruct"
-        else:
-            model_id = "google/gemini-pro-1.5"
-
-        headers = {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://athena-ia.onrender.com",
-            "X-Title": "ATHENA IA"
-        }
-
-        # System Prompt injetado no backend para garantir formatação estruturada (v5.2)
-        system_prompt = {
-            "role": "system",
-            "content": (
-                "Você é a ATHENA IA. Use formatação limpa com títulos, listas e tabelas. "
-                "Use LaTeX (envolvido em $$) ESTRITAMENTE para equações matemáticas ou científicas complexas. "
-                "NUNCA use LaTeX para formatar texto comum, variáveis simples ou negrito."
-            )
-        }
-        
-        # Garante que o system prompt seja a primeira mensagem
-        if not messages or messages[0].get("role") != "system":
-            messages.insert(0, system_prompt)
-
-        payload = {
-            "model": model_id,
-            "messages": messages,
-            "max_tokens": 2000,
-            "temperature": 0.7
-        }
-
-        try:
-            res = requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=60
-            )
-            if res.status_code == 402:
-                return jsonify({"error": "Erro 402: Créditos insuficientes no OpenRouter."}), 402
+    try:
+        if model_provider == 'cloud':
+            if not OPENROUTER_API_KEY:
+                return jsonify({'error': 'Chave da API OpenRouter não configurada no servidor.'}), 500
             
-            return jsonify(res.json()), res.status_code
-        except Exception as e:
-            return jsonify({"error": f"Falha na API: {str(e)}"}), 500
+            headers = {
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "qwen/qwen-2.5-coder-32b-instruct",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message}
+                ],
+                "max_tokens": 2000
+            }
+            
+            response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+            
+            if response.status_code == 402:
+                return jsonify({'error': 'Erro 402: Fundos esgotados no OpenRouter.'}), 402
+            
+            response.raise_for_status()
+            ai_reply = response.json()['choices'][0]['message']['content']
+            return jsonify({'reply': ai_reply})
+
+        elif model_provider == 'local':
+            # LM Studio Local Bridge
+            payload = {
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message}
+                ],
+                "temperature": 0.7,
+                "max_tokens": 2000
+            }
+            response = requests.post("http://127.0.0.1:1234/v1/chat/completions", json=payload, timeout=30)
+            response.raise_for_status()
+            ai_reply = response.json()['choices'][0]['message']['content']
+            return jsonify({'reply': ai_reply})
+
+    except requests.exceptions.ConnectionError:
+        return jsonify({'error': 'Falha de Conexão. Se estiver usando o HD Local, verifique se o LM Studio está rodando na porta 1234.'}), 503
+    except Exception as e:
+        return jsonify({'error': f'Erro no servidor: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    # Bind para Cloud (Render) e Local
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)

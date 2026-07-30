@@ -26,8 +26,11 @@
         </div>
         
         <div class="px-4 mb-4 mt-2">
-            <button onclick="openProfile()" class="w-full bg-gray-800 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition flex items-center justify-center gap-2 mb-3 text-sm border border-gray-600">
+            <button onclick="openProfile()" class="w-full bg-gray-800 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition flex items-center justify-center gap-2 mb-2 text-sm border border-gray-600">
                 🧠 Memória & Perfil
+            </button>
+            <button onclick="learnFromChat()" class="w-full bg-gray-800 text-yellow-500 py-2 rounded-lg hover:bg-gray-700 transition flex items-center justify-center gap-2 mb-3 text-xs border border-gray-600 border-dashed">
+                ⚡ IA Aprender & Adicionar
             </button>
             <button onclick="startNewChat()" class="w-full bg-[#FACC15] text-black font-bold py-3 rounded-lg hover:bg-[#EAB308] transition flex items-center justify-center gap-2 shadow-lg">
                 + Nova Conversa
@@ -60,18 +63,22 @@
             </div>
             <div class="flex items-center gap-3">
                 <select id="model-select" class="bg-gray-800 text-sm text-gray-300 rounded px-3 py-2 border border-gray-600">
-                    <!-- Slugs atualizadas e validadas para evitar Erro 404 no OpenRouter -->
-                    <option value="google/gemini-2.0-flash-lite-preview-02-05:free">☁️ Gemini Flash (Free Estável)</option>
+                    <!-- Removido V3 e ajustado Gemini para slug padrão -->
+                    <option value="google/gemini-exp-1206:free">☁️ Gemini Flash (Free Estável)</option>
                     <option value="meta-llama/llama-3.2-3b-instruct:free">☁️ Llama 3.2 3B (Free Estável)</option>
                     <option value="qwen/qwen-2.5-coder-32b-instruct:free">☁️ Qwen 2.5 Coder (Free)</option>
-                    <option value="deepseek/deepseek-chat:free">☁️ DeepSeek V3 (Free)</option>
                     <option value="deepseek/deepseek-r1:free">☁️ DeepSeek R1 (Free)</option>
                     <option value="local">💻 HD Local (LM Studio)</option>
                 </select>
                 <select id="voice-speed" class="bg-gray-800 text-sm text-gray-300 rounded px-2 py-2 border border-gray-600">
-                    <option value="1.0">Voz: 1.0x</option>
+                    <!-- Opções de velocidade restauradas e expandidas -->
+                    <option value="0.75">Voz: 0.75x</option>
+                    <option value="1.0" selected>Voz: 1.0x</option>
+                    <option value="1.25">Voz: 1.25x</option>
                     <option value="1.5">Voz: 1.5x</option>
                     <option value="2.0">Voz: 2.0x</option>
+                    <option value="3.0">Voz: 3.0x</option>
+                    <option value="4.0">Voz: 4.0x</option>
                 </select>
                 <button onclick="toggleLiveMode()" class="bg-[#FACC15] text-black font-bold px-4 py-2 rounded-lg hover:bg-[#EAB308] transition shadow-md flex items-center gap-2">
                     🎥 Modo Live (PiP)
@@ -89,7 +96,8 @@
         <!-- Área de Input (WhatsApp Style) -->
         <div class="absolute bottom-0 w-full bg-gradient-to-t from-[#0f1219] to-transparent pt-10 pb-6 px-6">
             <div class="max-w-4xl mx-auto relative flex items-end bg-[#151922] border border-gray-700 rounded-2xl shadow-2xl p-2">
-                <button class="p-3 text-gray-400 hover:text-[#FACC15] transition shrink-0" title="Anexar (Em breve)">📎</button>
+                <input type="file" id="file-attachment" class="hidden" accept=".txt,.md,image/png,image/jpeg" onchange="processAttachment(event)">
+                <button onclick="document.getElementById('file-attachment').click()" class="p-3 text-gray-400 hover:text-[#FACC15] transition shrink-0 cursor-pointer" title="Anexar Arquivo">📎</button>
                 <textarea id="user-input" class="flex-1 bg-transparent text-gray-100 p-3 resize-none outline-none max-h-48 min-h-[50px] placeholder-gray-500" placeholder="Mensagem para ATHENA IA (Shift+Enter para quebrar linha)..." rows="1"></textarea>
                 <button id="btn-enviar" onclick="handleSend()" class="bg-[#FACC15] text-black p-3 mb-1 mr-1 rounded-full hover:bg-[#EAB308] transition shrink-0 shadow-md">
                     <svg class="w-5 h-5 transform -rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>

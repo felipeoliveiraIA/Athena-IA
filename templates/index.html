@@ -218,6 +218,26 @@
             updateChatListSidebar(); 
         });
 
+        // --- NOVA FUNÇÃO ADICIONADA: renderUserMessage ---
+        // Desenha a mensagem do usuário na tela e inclui o botão de Reenviar (🔄)
+        function renderUserMessage(text) {
+            const chatBox = document.getElementById('chat-box');
+            const userHtml = `
+                <div class="flex gap-4 max-w-4xl mr-4 ml-auto w-full group justify-end">
+                    <div class="flex-1 flex flex-col items-end space-y-1 overflow-hidden">
+                        <div class="bg-[#1a1a1a] text-gray-200 p-3 rounded-2xl rounded-tr-sm border border-gray-700 shadow-md inline-block whitespace-pre-wrap break-words text-left">
+                            ${text}
+                        </div>
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="handleSend(\`${text.replace(/`/g, '\\`')}\`)" class="text-xs text-gray-500 hover:text-[#FACC15] transition flex items-center gap-1" title="Reenviar Mensagem">🔄 Reenviar</button>
+                        </div>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-gray-800 border border-gray-600 flex items-center justify-center shrink-0 text-sm shadow-md">👤</div>
+                </div>`;
+            chatBox.insertAdjacentHTML('beforeend', userHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+        
         // --- 2. LÓGICA DE ENVIO (Com Streaming de Tokens) ---
         async function handleSend(textOverride = null) {
             const text = textOverride !== null ? textOverride : userInput.value;
@@ -415,7 +435,7 @@
             document.getElementById('current-chat-title').innerText = "Nova Conversa";
         }
 
-        // --- RENDERIZAR CHATS SALVOS NA BARRA LATERAL ---
+        // --- RENDERIZAR CHATS SALVOS NA BARRA LATERAL COM 3 PONTINHOS ---
         function updateChatListSidebar() {
             const chatListDiv = document.getElementById('chat-list');
             if (!chatListDiv) return;
@@ -423,17 +443,115 @@
             chatListDiv.innerHTML = '';
             
             chatHistory.reverse().forEach(chat => {
-                const chatBtn = document.createElement('div');
-                chatBtn.className = "p-2 mb-2 bg-gray-800 rounded text-sm text-gray-300 cursor-pointer hover:bg-gray-700 truncate border border-gray-700 flex justify-between";
-                chatBtn.innerHTML = `<span>${chat.title}</span> <span title="Configuração de Retenção">${chat.retention === '999' ? '📌' : '⏳'}</span>`;
-                chatBtn.onclick = () => { 
-                    document.getElementById('chat-box').innerHTML = chat.content;
-                    document.getElementById('current-chat-title').innerText = chat.title;
-                    currentChatId = chat.id;
+                const chatWrapper = document.createElement('div');
+                // Estilos mantidos 100% em tons de negro/cinza (#111111 e #1a1a1a)
+                chatWrapper.className = "group relative flex items-center justify-between p-2 mb-2 bg-[#111111] rounded text-sm text-gray-300 hover:bg-[#1a1a1a] border border-gray-800 transition";
+                
+                const titleSpan = document.createElement('span');
+                titleSpan.className = "truncate cursor-pointer flex-1";
+                titleSpan.innerText = chat.title;
+                titleSpan.onclick = () => loadChat(chat.id);
+                
+                const rightArea = document.createElement('div');
+                rightArea.className = "flex items-center gap-2";
+                
+                const retentionIcon = document.createElement('span');
+                retentionIcon.title = "Configuração de Retenção";
+                retentionIcon.className = "text-xs";
+                retentionIcon.innerText = chat.retention === '999' ? '📌' : '⏳';
+                
+                // Container e Botão dos 3 pontinhos
+                const menuContainer = document.createElement('div');
+                menuContainer.className = "relative";
+                
+                const dotsBtn = document.createElement('button');
+                dotsBtn.className = "opacity-0 group-hover:opacity-100 px-1 text-gray-400 hover:text-white transition";
+                dotsBtn.innerHTML = '⋮';
+                dotsBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    const dropdown = menuContainer.querySelector('.dropdown-menu');
+                    document.querySelectorAll('.dropdown-menu').forEach(d => { if(d !== dropdown) d.classList.add('hidden'); });
+                    dropdown.classList.toggle('hidden');
                 };
-                chatListDiv.appendChild(chatBtn);
+                
+                // Dropdown Menu
+                const dropdown = document.createElement('div');
+                dropdown.className = "dropdown-menu hidden absolute right-0 top-full mt-1 w-44 bg-[#111111] border border-gray-700 rounded-md shadow-2xl z-50 flex flex-col overflow-hidden";
+                dropdown.innerHTML = `
+                    <button onclick="shareChat('${chat.id}')" class="text-left px-4 py-2 text-xs hover:bg-gray-800 text-gray-300 flex items-center gap-2">🔗 Compartilhar</button>
+                    <button onclick="togglePinChat('${chat.id}')" class="text-left px-4 py-2 text-xs hover:bg-gray-800 text-gray-300 flex items-center gap-2">📌 Fixar / Desfixar</button>
+                    <button onclick="renameChat('${chat.id}')" class="text-left px-4 py-2 text-xs hover:bg-gray-800 text-gray-300 flex items-center gap-2">✏️ Renomear</button>
+                    <button onclick="deleteChat('${chat.id}')" class="text-left px-4 py-2 text-xs hover:bg-gray-800 text-red-500 flex items-center gap-2">🗑️ Excluir</button>
+                `;
+                
+                menuContainer.appendChild(dotsBtn);
+                menuContainer.appendChild(dropdown);
+                
+                rightArea.appendChild(retentionIcon);
+                rightArea.appendChild(menuContainer);
+                
+                chatWrapper.appendChild(titleSpan);
+                chatWrapper.appendChild(rightArea);
+                chatListDiv.appendChild(chatWrapper);
             });
         }
+
+        // Funções operacionais dos 3 pontinhos
+        function loadChat(chatId) {
+            const chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+            const chat = chatHistory.find(c => c.id === chatId);
+            if (chat) {
+                document.getElementById('chat-box').innerHTML = chat.content;
+                document.getElementById('current-chat-title').innerText = chat.title;
+                currentChatId = chat.id;
+            }
+        }
+
+        function deleteChat(chatId) {
+            if(confirm("Tem certeza que deseja excluir esta conversa?")) {
+                let chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+                chatHistory = chatHistory.filter(c => c.id !== chatId);
+                localStorage.setItem('athena_chats', JSON.stringify(chatHistory));
+                updateChatListSidebar();
+                if(currentChatId === chatId) {
+                    document.getElementById('chat-box').innerHTML = '<div class="text-center text-gray-500 text-sm mt-10">Base de dados pronta. Inicie uma nova conversa.</div>';
+                    document.getElementById('current-chat-title').innerText = "Nova Conversa";
+                }
+            }
+        }
+
+        function renameChat(chatId) {
+            const newTitle = prompt("Digite o novo nome para esta conversa:");
+            if(newTitle && newTitle.trim() !== "") {
+                let chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+                const chat = chatHistory.find(c => c.id === chatId);
+                if(chat) {
+                    chat.title = newTitle;
+                    localStorage.setItem('athena_chats', JSON.stringify(chatHistory));
+                    updateChatListSidebar();
+                    if(currentChatId === chatId) document.getElementById('current-chat-title').innerText = newTitle;
+                }
+            }
+        }
+
+        function togglePinChat(chatId) {
+            let chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+            const chat = chatHistory.find(c => c.id === chatId);
+            if(chat) {
+                chat.retention = chat.retention === '999' ? '1' : '999';
+                localStorage.setItem('athena_chats', JSON.stringify(chatHistory));
+                updateChatListSidebar();
+            }
+        }
+
+        function shareChat(chatId) {
+            alert("A funcionalidade de compartilhamento será expandida. Por enquanto, você pode usar a opção de Exportar o texto na janela.");
+        }
+        
+        // Listener global para fechar os menus ao clicar fora
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.dropdown-menu').forEach(menu => menu.classList.add('hidden'));
+        });
 
         // Inicializa a barra lateral ao carregar a página
         window.addEventListener('DOMContentLoaded', () => { updateChatListSidebar(); });

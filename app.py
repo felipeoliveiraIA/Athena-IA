@@ -37,7 +37,7 @@ def chat():
                 "X-Title": "ATHENA IA v5.2 OS"
             }
             
-          payload = {
+            payload = {
                 "model": selected_model, 
                 "messages": [
                     {"role": "system", "content": system_prompt},

@@ -311,7 +311,18 @@
                 
                 // Salva o raw markdown em um atributo oculto para exportação perfeita
                 textContainer.setAttribute('data-raw-markdown', encodeURIComponent(accumulatedText));
+              
+                // INJEÇÃO AQUI: Salva os dados no exato milissegundo que a IA termina de responder
+                saveCurrentChat(); 
 
+            } catch (error) {
+                textContainer.innerHTML = `<span class="text-red-400 font-mono text-sm">⚠️ Erro: ${error.message}</span>`;
+                
+                // INJEÇÃO AQUI: Salva no histórico mesmo se der erro, para não perder seu prompt
+                saveCurrentChat(); 
+            }
+        }
+                
             } catch (error) {
                 textContainer.innerHTML = `<span class="text-red-400 font-mono text-sm">⚠️ Erro: ${error.message}</span>`;
             }
@@ -434,8 +445,14 @@
             chatHistory.reverse().forEach(chat => {
                 const chatWrapper = document.createElement('div');
                 // Estilos mantidos 100% em tons de negro/cinza (#111111 e #1a1a1a)
-                chatWrapper.className = "group relative flex items-center justify-between p-2 mb-2 bg-[#111111] rounded text-sm text-gray-300 hover:bg-[#1a1a1a] border border-gray-800 transition";
-                
+                // LÓGICA DE DESTAQUE: Aplica Borda Dourada e texto Amarelo se o chat for o atual
+                if (chat.id === currentChatId) {
+                    chatWrapper.className = "group relative flex items-center justify-between p-2 mb-2 bg-[#1a1a1a] rounded text-sm text-[#FACC15] border border-[#FACC15] shadow-[0_0_8px_rgba(250,204,21,0.2)] transition";
+                } else {
+                    // Mantém o design escuro padrão Obsidian/Gemini para os inativos
+                    chatWrapper.className = "group relative flex items-center justify-between p-2 mb-2 bg-[#111111] rounded text-sm text-gray-300 hover:bg-[#1a1a1a] border border-gray-800 transition";
+                }
+        
                 const titleSpan = document.createElement('span');
                 titleSpan.className = "truncate cursor-pointer flex-1";
                 titleSpan.innerText = chat.title;

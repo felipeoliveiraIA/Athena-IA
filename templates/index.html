@@ -342,6 +342,18 @@
         }
 
         // --- 4. FERRAMENTAS DE PRODUTIVIDADE (TTS, Obsidian) ---
+        
+        // NOVA FUNÇÃO: Copiar para a área de transferência mantendo formatação Markdown limpa
+        function copyToClipboard(encodedText) {
+            const text = decodeURIComponent(encodedText);
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Conteúdo copiado com sucesso para a área de transferência!");
+            }).catch(err => {
+                console.error('Falha ao copiar texto: ', err);
+                alert("Erro ao copiar o texto.");
+            });
+        }
+        
         function readAloud(btn, encodedText) {
             const text = decodeURIComponent(encodedText);
             

@@ -308,12 +308,12 @@
                 <div class="flex gap-4 max-w-4xl ml-4 mr-auto w-full">
                     <div class="w-8 h-8 rounded-full bg-[#151922] border border-[#FACC15] flex items-center justify-center shrink-0 text-sm shadow-[0_0_10px_rgba(250,204,21,0.2)]">🦉</div>
                     <div class="flex-1 space-y-2">
-                        <div class="bg-[#151922] text-gray-200 p-5 rounded-2xl rounded-tl-sm border border-gray-800 shadow-lg prose prose-invert prose-yellow max-w-none overflow-x-auto">
-                            ${parsedHtml}
-                        </div>
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 mt-3">
                             <button onclick="readAloud(this, \`${encodeURIComponent(markdownText)}\`)" class="text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded hover:text-white hover:bg-gray-700 transition flex items-center gap-1">
                                 🔊 Ouvir
+                            </button>
+                            <button onclick="copyToClipboard(\`${encodeURIComponent(markdownText)}\`)" class="text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded hover:text-white hover:bg-[#FACC15] hover:text-black transition flex items-center gap-1 border border-gray-700">
+                                📋 Copiar
                             </button>
                             <button onclick="exportToObsidian(\`${encodeURIComponent(markdownText)}\`)" class="text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded hover:text-white hover:bg-gray-700 transition flex items-center gap-1">
                                 🪨 Exportar Obsidian

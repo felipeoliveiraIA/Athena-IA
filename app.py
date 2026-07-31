@@ -19,16 +19,29 @@ import json
 from flask import Response
 
 @app.route('/api/chat', methods=['POST'])
+@app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.json
     user_message = data.get('message', '')
+    images = data.get('images', []) # Nova linha: captura o array de imagens
     selected_model = data.get('model', 'qwen/qwen-2.5-coder-32b-instruct:free') 
     system_prompt = data.get('system_prompt', 'Você é a ATHENA IA. Responda em Markdown limpo.')
 
-    if not user_message:
+    if not user_message and not images:
         return jsonify({'error': 'Mensagem vazia.'}), 400
 
     try:
+        # Montagem Estrutural Multimodal Exigida pelo OpenRouter
+        message_content = []
+        if user_message:
+            message_content.append({"type": "text", "text": user_message})
+        
+        for img_base64 in images:
+            message_content.append({"type": "image_url", "image_url": {"url": img_base64}})
+            
+        # Se for só texto, simplifica o payload para máxima compatibilidade
+        final_content = message_content if images else user_message
+
         if selected_model != 'local':
             if not OPENROUTER_API_KEY:
                 return jsonify({'error': 'Chave da API OpenRouter não configurada.'}), 500
@@ -38,6 +51,16 @@ def chat():
                 "Content-Type": "application/json",
                 "HTTP-Referer": SITE_URL,
                 "X-Title": "ATHENA IA v5.2 OS"
+            }
+            
+            payload = {
+                "model": selected_model, 
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": final_content}
+                ],
+                "max_tokens": 2000,
+                "stream": True
             }
             
             payload = {

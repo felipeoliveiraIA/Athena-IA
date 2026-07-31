@@ -19,11 +19,10 @@ import json
 from flask import Response
 
 @app.route('/api/chat', methods=['POST'])
-@app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.json
     user_message = data.get('message', '')
-    images = data.get('images', []) # Nova linha: captura o array de imagens
+    images = data.get('images', []) 
     selected_model = data.get('model', 'qwen/qwen-2.5-coder-32b-instruct:free') 
     system_prompt = data.get('system_prompt', 'Você é a ATHENA IA. Responda em Markdown limpo.')
 
@@ -39,7 +38,6 @@ def chat():
         for img_base64 in images:
             message_content.append({"type": "image_url", "image_url": {"url": img_base64}})
             
-        # Se for só texto, simplifica o payload para máxima compatibilidade
         final_content = message_content if images else user_message
 
         if selected_model != 'local':
@@ -58,16 +56,6 @@ def chat():
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": final_content}
-                ],
-                "max_tokens": 2000,
-                "stream": True
-            }
-            
-            payload = {
-                "model": selected_model, 
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
                 ],
                 "max_tokens": 2000,
                 "stream": True # Ativa o Streaming no OpenRouter

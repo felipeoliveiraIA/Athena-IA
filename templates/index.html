@@ -208,37 +208,56 @@
         }
 
         // --- 2. LÓGICA DE ENVIO BLINDADA E RESPOSTA ---
+        // --- MELHORIA PROATIVA: Salvar rascunho enquanto digita ---
+        userInput.addEventListener('input', function() {
+            localStorage.setItem('athena_draft', this.value);
+        });
+        window.addEventListener('DOMContentLoaded', () => { 
+            const draft = localStorage.getItem('athena_draft');
+            if(draft) userInput.value = draft;
+            updateChatListSidebar(); 
+        });
+
+        // --- 2. LÓGICA DE ENVIO (Com Streaming de Tokens) ---
         async function handleSend(textOverride = null) {
             const text = textOverride !== null ? textOverride : userInput.value;
             if (!text.trim()) return;
 
             if (textOverride === null) {
                 userInput.value = '';
+                localStorage.removeItem('athena_draft'); // Limpa rascunho após enviar
                 userInput.style.height = 'auto';
             }
 
             const chatBox = document.getElementById('chat-box');
-            
-            // 1. Renderiza a mensagem do usuário (com botão de reenviar)
             renderUserMessage(text);
             
-            // 2. Indicador de Processamento
-            const loadingId = 'loading-' + Date.now();
-            const loadingHtml = `
-                <div id="${loadingId}" class="flex gap-4 max-w-3xl ml-4 mr-auto animate-pulse">
-                    <div class="w-8 h-8 rounded-full bg-[#151922] border border-[#FACC15] flex items-center justify-center shrink-0">🦉</div>
-                    <div class="bg-[#151922] p-4 rounded-2xl border border-gray-800 text-gray-400 text-sm italic">
-                        Processando dados...
-                    </div>
-                </div>`;
-            chatBox.insertAdjacentHTML('beforeend', loadingHtml);
-            chatBox.scrollTop = chatBox.scrollHeight;
-
             const model = document.getElementById('model-select').value;
             const profileData = localStorage.getItem('athena_profile') || '';
 
+            // Estrutura inicial do balão da IA (vazio para receber o streaming)
+            const uniqueId = 'ai-msg-' + Date.now();
+            const aiHtml = `
+                <div class="flex gap-4 max-w-4xl ml-4 mr-auto w-full group">
+                    <div class="w-8 h-8 rounded-full bg-[#111111] border border-[#FACC15] flex items-center justify-center shrink-0 text-sm shadow-[0_0_10px_rgba(250,204,21,0.2)]">🦉</div>
+                    <div class="flex-1 space-y-2 overflow-hidden">
+                        <div id="${uniqueId}" class="markdown-body text-gray-200">
+                            <span class="animate-pulse text-gray-500 italic">Conectando...</span>
+                        </div>
+                        <div class="flex gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="readAloud(this, '${uniqueId}')" class="text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded hover:text-white hover:bg-gray-700 transition flex items-center gap-1">🔊 Ouvir</button>
+                            <button onclick="copyToClipboard('${uniqueId}')" class="text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded hover:text-white hover:bg-[#FACC15] hover:text-black transition flex items-center gap-1 border border-gray-700">📋 Copiar</button>
+                            <button onclick="exportToObsidian('${uniqueId}')" class="text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded hover:text-white hover:bg-gray-700 transition flex items-center gap-1">🪨 Exportar Obsidian</button>
+                        </div>
+                    </div>
+                </div>`;
+            chatBox.insertAdjacentHTML('beforeend', aiHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            const textContainer = document.getElementById(uniqueId);
+            let accumulatedText = "";
+
             try {
-                // 3. Chamada de API
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -249,83 +268,78 @@
                     })
                 });
 
-                // 4. Remove o Processando
-                document.getElementById(loadingId).remove();
-
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.error || `Erro HTTP ${response.status}`);
                 }
 
-                const data = await response.json();
+                // Lógica de Leitura do Streaming (SSE)
+                marked.setOptions({ breaks: true, gfm: true });
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    accumulatedText += decoder.decode(value, { stream: true });
+                    textContainer.innerHTML = marked.parse(accumulatedText);
+                    
+                    // Rolagem suave acompanhando a geração do texto
+                    chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+                }
                 
-                // 5. Renderiza a IA
-                renderAIMessage(data.reply);
+                // Salva o raw markdown em um atributo oculto para exportação perfeita
+                textContainer.setAttribute('data-raw-markdown', encodeURIComponent(accumulatedText));
 
             } catch (error) {
-                if (document.getElementById(loadingId)) document.getElementById(loadingId).remove();
-                renderError(error.message);
+                textContainer.innerHTML = `<span class="text-red-400 font-mono text-sm">⚠️ Erro: ${error.message}</span>`;
             }
         }
 
-        // --- 3. RENDERIZAÇÃO NA TELA ---
-        function renderUserMessage(text) {
-            const chatBox = document.getElementById('chat-box');
-            
-            // Cria container
-            const container = document.createElement('div');
-            container.className = "flex flex-col items-end gap-1 max-w-3xl mr-4 ml-auto w-full group";
-            
-            // Botão de Reenviar (invisível até passar o mouse)
-            const resendBtn = document.createElement('button');
-            resendBtn.innerHTML = '🔄';
-            resendBtn.className = "text-gray-500 hover:text-[#FACC15] text-xs opacity-0 group-hover:opacity-100 transition mr-1 cursor-pointer";
-            resendBtn.title = "Reenviar esta mensagem";
-            resendBtn.onclick = () => { handleSend(text); }; // Chama handleSend passando o texto antigo
-
-            const bubble = document.createElement('div');
-            bubble.className = "bg-gray-800 text-gray-100 p-4 rounded-2xl rounded-tr-sm border border-gray-700 shadow-md";
-            bubble.textContent = text; // Previne XSS em input do usuário
-
-            const row = document.createElement('div');
-            row.className = "flex items-center gap-2";
-            row.appendChild(resendBtn);
-            row.appendChild(bubble);
-            
-            container.appendChild(row);
-            chatBox.appendChild(container);
-            chatBox.scrollTop = chatBox.scrollHeight;
+        // --- AJUSTE NAS FUNÇÕES DE FERRAMENTAS PARA SUPORTAR O STREAMING ---
+        function copyToClipboard(elementId) {
+            const raw = document.getElementById(elementId).getAttribute('data-raw-markdown');
+            if (raw) {
+                navigator.clipboard.writeText(decodeURIComponent(raw)).then(() => {
+                    alert("Conteúdo copiado com sucesso!");
+                });
+            }
         }
-
-       function renderAIMessage(markdownText) {
-            const chatBox = document.getElementById('chat-box');
-            
-            // APRIMORAMENTO: Configuração para quebras de linha mais limpas e preservação estrutural
-            marked.setOptions({ breaks: true, gfm: true });
-            const parsedHtml = marked.parse(markdownText);
-            
-            const aiHtml = `
-                <div class="flex gap-4 max-w-4xl ml-4 mr-auto w-full">
-                    <div class="w-8 h-8 rounded-full bg-[#151922] border border-[#FACC15] flex items-center justify-center shrink-0 text-sm shadow-[0_0_10px_rgba(250,204,21,0.2)]">🦉</div>
-                    <div class="flex-1 space-y-2">
-                        <div class="flex gap-2 mt-3">
-                            <button onclick="readAloud(this, \`${encodeURIComponent(markdownText)}\`)" class="text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded hover:text-white hover:bg-gray-700 transition flex items-center gap-1">
-                                🔊 Ouvir
-                            </button>
-                            <button onclick="copyToClipboard(\`${encodeURIComponent(markdownText)}\`)" class="text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded hover:text-white hover:bg-[#FACC15] hover:text-black transition flex items-center gap-1 border border-gray-700">
-                                📋 Copiar
-                            </button>
-                            <button onclick="exportToObsidian(\`${encodeURIComponent(markdownText)}\`)" class="text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded hover:text-white hover:bg-gray-700 transition flex items-center gap-1">
-                                🪨 Exportar Obsidian
-                            </button>
-                        </div>
-                    </div>
-                </div>`;
-                
-            chatBox.insertAdjacentHTML('beforeend', aiHtml);
-            
-            // APRIMORAMENTO: Rolagem suave garantida após renderização de elementos grandes
-            setTimeout(() => { chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' }); }, 100);
+        function exportToObsidian(elementId) {
+            const raw = document.getElementById(elementId).getAttribute('data-raw-markdown');
+            if (raw) {
+                const text = decodeURIComponent(raw);
+                const blob = new Blob([text], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ATHENA_Export_${new Date().toISOString().slice(0,10)}.md`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+        function readAloud(btn, elementId) {
+            const raw = document.getElementById(elementId).getAttribute('data-raw-markdown');
+            if(!raw) return;
+            const text = decodeURIComponent(raw);
+            // ... (resto do seu código de readAloud permanece idêntico)
+            if (isSpeaking) {
+                synth.cancel();
+                isSpeaking = false;
+                btn.innerHTML = '🔊 Ouvir';
+                return;
+            }
+            const speed = parseFloat(document.getElementById('voice-speed').value);
+            const utterance = new SpeechSynthesisUtterance(text);
+            const voices = synth.getVoices();
+            const femaleVoice = voices.find(v => (v.lang.includes('pt-BR') || v.lang.includes('PT')) && (v.name.includes('Female') || v.name.includes('Luciana') || v.name.includes('Francisca'))) || voices[0];
+            utterance.voice = femaleVoice;
+            utterance.rate = speed;
+            utterance.onstart = () => { isSpeaking = true; btn.innerHTML = '⏹️ Parar'; };
+            utterance.onend = () => { isSpeaking = false; btn.innerHTML = '🔊 Ouvir'; };
+            utterance.onerror = () => { isSpeaking = false; btn.innerHTML = '🔊 Ouvir'; };
+            synth.speak(utterance);
         }
 
         function renderError(errMsg) {

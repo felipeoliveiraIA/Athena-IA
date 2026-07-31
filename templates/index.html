@@ -362,7 +362,7 @@
             synth.speak(utterance);
         }
 
-        function renderError(errMsg) {
+      function renderError(errMsg) {
             const chatBox = document.getElementById('chat-box');
             const errHtml = `
                 <div class="flex gap-4 max-w-3xl ml-4 mr-auto w-full">
@@ -375,14 +375,7 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        function renderError(errMsg) {
-            // ... código do renderError ...
-        }
-
         // --- MEMÓRIA E PERFIL (100% ADITIVO) ---
-        function openProfile() {
-
-// --- MEMÓRIA E PERFIL (100% ADITIVO) ---
         function openProfile() {
             const currentProfile = localStorage.getItem('athena_profile') || '';
             const newInformation = prompt("Centro de Memória (Arquitetura Aditiva).\nO que você deseja ADICIONAR ao seu perfil? (O histórico antigo nunca é apagado):");

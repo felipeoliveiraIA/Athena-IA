@@ -27,8 +27,9 @@
 
 <!-- Barra Lateral -->
     <aside id="sidebar" class="bg-[#111111] w-72 flex flex-col h-full border-r border-gray-800 shadow-xl z-30 shrink-0 absolute md:relative transition-transform duration-300 -translate-x-full md:translate-x-0">
-        <div class="p-5 flex items-center gap-2 font-bold text-[#FACC15] text-2xl tracking-wide whitespace-nowrap">
-            🦉 ATHENA IA <span class="text-xs bg-orange-900 text-orange-200 px-2 py-0.5 rounded-full ml-1 align-middle">v5.2 OS</span>
+        <div class="p-5 flex items-center justify-between gap-2 font-bold text-[#FACC15] text-2xl tracking-wide whitespace-nowrap">
+            <span>🦉 ATHENA IA <span class="text-xs bg-orange-900 text-orange-200 px-2 py-0.5 rounded-full ml-1 align-middle">v5.2</span></span>
+            <button onclick="toggleSidebar()" class="md:hidden text-gray-400 text-lg">✕</button>
         </div>
         
         <div class="px-4 mb-4 mt-2">
@@ -41,8 +42,14 @@
             <button onclick="startNewChat()" class="w-full bg-[#FACC15] text-black font-bold py-3 rounded-lg hover:bg-[#EAB308] transition flex items-center justify-center gap-2 shadow-lg">
                 + Nova Conversa
             </button>
+            
+            <!-- NOVA FUNCIONALIDADE: Barra de Pesquisa de Chats -->
+        <div class="relative mt-2">
+            <input type="text" id="search-chats" onkeyup="filterChats()" placeholder="Pesquisar conversas..." class="w-full bg-[#1a1a1a] text-gray-300 text-sm rounded-lg pl-9 pr-3 py-2 border border-gray-700 outline-none focus:border-[#FACC15] transition placeholder-gray-500">
+            <span class="absolute left-3 top-2.5 text-gray-500 text-xs">🔍</span>
         </div>
-
+    </div>
+       
         <div class="flex-1 overflow-y-auto px-4" id="chat-list">
             <!-- Lista de chats do LocalStorage renderizada aqui -->
         </div>
@@ -96,16 +103,31 @@
             </div>
         </div>
 
-        <!-- Área de Input (WhatsApp Style) -->
-        <div class="w-full bg-[#050505] pt-2 pb-6 px-6 shrink-0 z-20 border-t border-gray-800">
-            <div class="max-w-4xl mx-auto relative flex items-end bg-[#111111] border border-gray-700 rounded-2xl shadow-2xl p-2">
-                <input type="file" id="file-attachment" class="hidden" accept=".txt,.md,image/png,image/jpeg" onchange="processAttachment(event)">
-                <button onclick="document.getElementById('file-attachment').click()" class="p-3 text-gray-400 hover:text-[#FACC15] transition shrink-0 cursor-pointer" title="Anexar Arquivo">📎</button>
-                <textarea id="user-input" class="flex-1 bg-transparent text-gray-100 p-3 resize-none outline-none max-h-[150px] min-h-[50px] overflow-y-auto placeholder-gray-500" placeholder="Mensagem para ATHENA IA (Shift+Enter quebra linha, Enter envia)..." rows="1"></textarea>                <!-- Botão Enviar substituído por aviãozinho apontando para a direita (Padrão WhatsApp), preservando sua cor dourada -->
-                <button id="btn-enviar" onclick="handleSend()" class="bg-[#FACC15] text-black p-3 mb-1 mr-1 rounded-full hover:bg-[#EAB308] transition shrink-0 shadow-md flex items-center justify-center w-12 h-12">
-                    <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
-                </button>
+        <!-- Área de Input Híbrida (Estilo Gemini) -->
+        <div class="w-full bg-[#050505] pt-2 pb-4 sm:pb-6 px-3 sm:px-6 shrink-0 z-20 border-t border-gray-800">
+            <div id="drop-zone" class="max-w-4xl mx-auto relative flex flex-col bg-[#111111] border border-gray-700 rounded-2xl shadow-2xl transition-colors duration-200">
+                
+                <!-- Container para as Miniaturas dos Arquivos -->
+                <div id="attachments-preview" class="flex flex-wrap gap-2 px-3 pt-2 hidden max-h-32 overflow-y-auto"></div>
+
+                <div class="flex items-end p-2 w-full">
+                    <input type="file" id="file-attachment" class="hidden" accept=".txt,.md,image/png,image/jpeg,image/webp" multiple onchange="processAttachment(event)">
+                    <button onclick="document.getElementById('file-attachment').click()" class="p-3 text-gray-400 hover:text-[#FACC15] transition shrink-0 cursor-pointer" title="Anexar Arquivo (Até 50)">📎</button>
+                    
+                    <textarea id="user-input" class="flex-1 bg-transparent text-gray-100 p-3 resize-none outline-none max-h-[150px] min-h-[50px] overflow-y-auto placeholder-gray-500 text-sm sm:text-base" placeholder="Arraste arquivos ou digite (Shift+Enter quebra linha)..." rows="1"></textarea>
+                    
+                    <!-- Botão de Microfone -->
+                    <button id="btn-dictation" onclick="toggleDictation()" class="p-3 text-gray-400 hover:text-[#FACC15] transition shrink-0 cursor-pointer flex items-center justify-center" title="Gravar Áudio (Voz para Texto)">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    </button>
+                    
+                    <!-- Botão Enviar -->
+                    <button id="btn-enviar" onclick="handleSend()" class="bg-[#FACC15] text-black p-3 mb-1 mr-1 rounded-full hover:bg-[#EAB308] transition shrink-0 shadow-md flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 disabled:opacity-50">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6 sm:ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                    </button>
+                </div>
             </div>
+            <div class="max-w-4xl mx-auto text-center mt-2 text-[10px] text-gray-600">ATHENA IA v5.2 OS pode cometer erros. Considere verificar informações vitais.</div>
         </div>
 
     <!-- Container do Vídeo PiP (Injetado via Document PiP) -->
@@ -267,15 +289,36 @@
             const textContainer = document.getElementById(uniqueId);
             let accumulatedText = "";
 
-            try {
+            // Prepara os textos dos arquivos .txt inseridos
+                let attachedText = "";
+                const imagePayloads = [];
+                
+                globalAttachments.forEach(f => {
+                    if (f.type.startsWith('text/')) {
+                        attachedText += `\n\n[Conteúdo Anexado: ${f.name}]:\n${f.data}`;
+                    } else if (f.type.startsWith('image/')) {
+                        imagePayloads.push(f.data);
+                    }
+                });
+
+                const finalMessage = text + attachedText;
+
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        message: text,
+                        message: finalMessage,
+                        images: imagePayloads, // Envia array de base64 para o backend tratar
                         model: model,
                         system_prompt: `Você é a ATHENA IA, v5.2 OS. Perfil do usuário: ${profileData}. Responda em Markdown estruturado.`
                     })
+                });
+                
+                // Limpa os anexos visuais APÓS enviar
+                if (textOverride === null) {
+                    globalAttachments = [];
+                    renderThumbnails();
+                }
                 });
 
                 if (!response.ok) {
@@ -841,6 +884,131 @@
             
             // Tratamento anti-eco: O reconhecimento é desligado momentaneamente quando a IA responde (handleSend faz o botão Play ser ativado depois).
         }
+
+        // --- 7. MÓDULOS DE APRIMORAMENTO GEMINI-LIKE ---
+
+        // Responsividade Mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        // Pesquisa de Conversas na Barra Lateral
+        function filterChats() {
+            const query = document.getElementById('search-chats').value.toLowerCase();
+            const chats = document.getElementById('chat-list').children;
+            for (let i = 0; i < chats.length; i++) {
+                const title = chats[i].querySelector('span').innerText.toLowerCase();
+                chats[i].style.display = title.includes(query) ? 'flex' : 'none';
+            }
+        }
+
+        // Gestão de Múltiplos Anexos Visuais (Até 50 Arquivos)
+        let globalAttachments = [];
+        const previewContainer = document.getElementById('attachments-preview');
+        const dropZone = document.getElementById('drop-zone');
+
+        // Drag and Drop (Arrastar e Soltar)
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-[#FACC15]', 'bg-gray-800'); });
+        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-[#FACC15]', 'bg-gray-800'); });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-[#FACC15]', 'bg-gray-800');
+            handleNewFiles(e.dataTransfer.files);
+        });
+
+        // Modificando a função existente de Attachments
+        window.processAttachment = function(event) { handleNewFiles(event.target.files); };
+        window.processFileLogic = function(file) { handleNewFiles([file]); };
+
+        function handleNewFiles(files) {
+            if (globalAttachments.length + files.length > 50) {
+                alert("Limite máximo de 50 arquivos atingido.");
+                return;
+            }
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    globalAttachments.push({ name: file.name, type: file.type, data: e.target.result });
+                    renderThumbnails();
+                };
+                file.type.startsWith('text/') ? reader.readAsText(file) : reader.readAsDataURL(file);
+            });
+        }
+
+        function renderThumbnails() {
+            previewContainer.innerHTML = '';
+            previewContainer.classList.toggle('hidden', globalAttachments.length === 0);
+            
+            globalAttachments.forEach((file, index) => {
+                const isImage = file.type.startsWith('image/');
+                const previewHtml = isImage 
+                    ? `<img src="${file.data}" class="w-10 h-10 object-cover rounded-md border border-gray-600">`
+                    : `<div class="w-10 h-10 bg-gray-800 rounded-md border border-gray-600 flex items-center justify-center text-xs text-[#FACC15]">📄</div>`;
+                
+                previewContainer.insertAdjacentHTML('beforeend', `
+                    <div class="relative group mt-1">
+                        ${previewHtml}
+                        <button onclick="removeAttachment(${index})" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition shadow-md">✕</button>
+                        <div class="text-[9px] text-gray-400 w-10 truncate text-center mt-1">${file.name}</div>
+                    </div>
+                `);
+            });
+            document.getElementById('file-attachment').value = '';
+        }
+
+        function removeAttachment(index) {
+            globalAttachments.splice(index, 1);
+            renderThumbnails();
+        }
+
+        // Voz para Texto (Microfone no Input)
+        let dictationRec = null;
+        let isDictating = false;
+
+        function toggleDictation() {
+            const btn = document.getElementById('btn-dictation');
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) { alert("Seu navegador não suporta gravação de voz."); return; }
+
+            if (isDictating) {
+                dictationRec.stop();
+                return;
+            }
+
+            dictationRec = new SpeechRecognition();
+            dictationRec.lang = 'pt-BR';
+            dictationRec.continuous = true;
+            dictationRec.interimResults = true;
+            
+            let finalTranscript = userInput.value;
+
+            dictationRec.onstart = () => {
+                isDictating = true;
+                btn.classList.add('text-red-500', 'animate-pulse');
+                userInput.placeholder = "Escutando... (Fale agora)";
+            };
+
+            dictationRec.onresult = (event) => {
+                let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript + " ";
+                    else interim += event.results[i][0].transcript;
+                }
+                userInput.value = finalTranscript + interim;
+                userInput.style.height = 'auto';
+                userInput.style.height = (userInput.scrollHeight) + 'px';
+            };
+
+            dictationRec.onend = () => {
+                isDictating = false;
+                btn.classList.remove('text-red-500', 'animate-pulse');
+                userInput.placeholder = "Mensagem para ATHENA IA (Shift+Enter quebra linha)...";
+            };
+
+            dictationRec.start();
+        }
+        
     </script>
 </body>
 </html>

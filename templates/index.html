@@ -81,11 +81,13 @@
             <div class="flex items-center gap-2 sm:gap-3">
                 <!-- LISTA DE MODELOS (Corrigidos com sufixo :free para contornar erro 400 e 402) -->
                 <select id="model-select" class="bg-gray-800 text-xs sm:text-sm text-gray-300 rounded px-1 sm:px-3 py-2 border border-gray-600 max-w-[120px] sm:max-w-none truncate">
-                    <option value="google/gemini-2.0-flash-lite-preview-02-05:free">☁️ Gemini 2.0 Flash</option>
+                    <!-- Slugs atualizados para as rotas gratuitas mais estáveis do OpenRouter -->
+                    <option value="google/gemini-2.0-pro-exp-02-05:free">☁️ Gemini 2.0 Pro</option>
                     <option value="meta-llama/llama-3.3-70b-instruct:free">☁️ Llama 3.3 70B</option>
+                    <option value="meta-llama/llama-3.1-8b-instruct:free">☁️ Llama 3.1 8B (Estável)</option>
                     <option value="qwen/qwen-2.5-coder-32b-instruct:free">☁️ Qwen 2.5 Coder</option>
                     <option value="deepseek/deepseek-r1:free">☁️ DeepSeek R1</option>
-                    <option value="local">💻 HD Local</option>
+                    <option value="local">💻 HD Local (LM Studio)</option>
                 </select>
                 <select id="voice-speed" class="hidden sm:block bg-gray-800 text-sm text-gray-300 rounded px-2 py-2 border border-gray-600">
                     <option value="1.0" selected>Voz: 1.0x</option>
@@ -231,23 +233,61 @@
         });
 
         // --- NOVA FUNÇÃO ADICIONADA: renderUserMessage ---
-        // Desenha a mensagem do usuário na tela e inclui o botão de Reenviar (🔄)
-        function renderUserMessage(text) {
+        
+        // --- NOVA FUNÇÃO: renderUserMessage COM EDIÇÃO ---
+        function renderUserMessage(text, messageId = null) {
             const chatBox = document.getElementById('chat-box');
+            // Gera um ID único se não for fornecido
+            const id = messageId || 'user-msg-' + Date.now(); 
+
             const userHtml = `
-                <div class="flex gap-4 max-w-4xl mr-4 ml-auto w-full group justify-end">
+                <div id="${id}-container" class="flex gap-4 max-w-4xl mr-4 ml-auto w-full group justify-end">
                     <div class="flex-1 flex flex-col items-end space-y-1 overflow-hidden">
-                        <div class="bg-[#1a1a1a] text-gray-200 p-3 rounded-2xl rounded-tr-sm border border-gray-700 shadow-md inline-block whitespace-pre-wrap break-words text-left">
+                        <div id="${id}-text" class="bg-[#1a1a1a] text-gray-200 p-3 rounded-2xl rounded-tr-sm border border-gray-700 shadow-md inline-block whitespace-pre-wrap break-words text-left w-full max-w-full">
                             ${text}
                         </div>
-                        <div class="opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onclick="handleSend(\`${text.replace(/`/g, '\\`')}\`)" class="text-xs text-gray-500 hover:text-[#FACC15] transition flex items-center gap-1" title="Reenviar Mensagem">🔄 Reenviar</button>
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-3">
+                            <button onclick="editUserMessage('${id}')" class="text-xs text-gray-500 hover:text-[#FACC15] transition flex items-center gap-1" title="Editar Mensagem">✏️ Editar</button>
+                            <button onclick="handleSend(document.getElementById('${id}-text').innerText)" class="text-xs text-gray-500 hover:text-[#FACC15] transition flex items-center gap-1" title="Reenviar Mensagem">🔄 Reenviar</button>
                         </div>
                     </div>
                     <div class="w-8 h-8 rounded-full bg-gray-800 border border-gray-600 flex items-center justify-center shrink-0 text-sm shadow-md">👤</div>
                 </div>`;
             chatBox.insertAdjacentHTML('beforeend', userHtml);
             chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // --- LÓGICA DE EDIÇÃO DE MENSAGENS ---
+        function editUserMessage(id) {
+            const textDiv = document.getElementById(`${id}-text`);
+            const currentText = textDiv.innerText;
+    
+            // Transforma a div em um textarea editável
+            textDiv.innerHTML = `
+                <textarea id="${id}-edit-input" class="w-full bg-[#050505] text-gray-200 p-2 rounded border border-[#FACC15] outline-none resize-none min-h-[80px] shadow-inner">${currentText}</textarea>
+                <div class="flex justify-end gap-2 mt-2">
+                    <button onclick="cancelEdit('${id}', \`${currentText.replace(/`/g, '\\`')}\`)" class="text-xs bg-gray-700 text-white px-3 py-1.5 rounded hover:bg-gray-600 transition">Cancelar</button>
+                    <button onclick="saveEdit('${id}')" class="text-xs bg-[#FACC15] text-black px-3 py-1.5 rounded font-bold hover:bg-[#EAB308] transition">💾 Salvar & Reenviar</button>
+                </div>
+            `;
+        }
+
+        function cancelEdit(id, originalText) {
+            document.getElementById(`${id}-text`).innerText = originalText;
+        }
+
+        function saveEdit(id) {
+            const newText = document.getElementById(`${id}-edit-input`).value;
+            if (!newText.trim()) return;
+    
+            // Atualiza o texto na interface
+            document.getElementById(`${id}-text`).innerText = newText;
+    
+            // Força o salvamento na memória do IndexedDB/LocalStorage
+            saveCurrentChat(); 
+    
+            // Dispara a nova requisição para a IA com o texto editado
+            handleSend(newText); 
         }
         
         // --- 2. LÓGICA DE ENVIO (Com Streaming de Tokens) ---

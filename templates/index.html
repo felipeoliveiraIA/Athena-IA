@@ -699,7 +699,7 @@
             }
         }
 
-        // Controle de Pausa/Retomar e Envio Manual
+        // Controle de Pausa/Retomar e Envio Manual (Cores Corrigidas)
         function togglePauseLive() {
             isPausedLive = !isPausedLive;
             const btnPause = document.getElementById('btn-pause-live');
@@ -708,13 +708,14 @@
             
             if (isPausedLive) {
                 btnPause.innerText = "▶ Retomar Escuta";
-                btnPause.classList.replace('bg-gray-700', 'bg-blue-600');
+                // Substituído bg-blue-600 por cinza neutro para manter identidade visual rigorosa
+                btnPause.classList.replace('bg-gray-700', 'bg-gray-500');
                 btnTransmit.classList.remove('hidden');
                 micPulse.classList.replace('bg-green-500', 'bg-yellow-500');
                 document.getElementById('ghost-bubble').innerText = "⏸️ Escuta contínua pausada...";
             } else {
                 btnPause.innerText = "⏸ Pausar IA";
-                btnPause.classList.replace('bg-blue-600', 'bg-gray-700');
+                btnPause.classList.replace('bg-gray-500', 'bg-gray-700');
                 btnTransmit.classList.add('hidden');
                 micPulse.classList.replace('bg-yellow-500', 'bg-green-500');
                 document.getElementById('ghost-bubble').innerText = "Ouvindo...";

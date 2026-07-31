@@ -465,6 +465,8 @@
             localStorage.setItem('athena_chats', JSON.stringify(chatHistory));
 
             updateChatListSidebar(); // Atualiza a barra instantaneamente
+    
+            document.getElementById('user-input').focus();
         }
 
         // --- RENDERIZAR CHATS SALVOS NA BARRA LATERAL COM 3 PONTINHOS ---
@@ -584,8 +586,11 @@
                 document.getElementById('chat-box').innerHTML = chat.content;
                 document.getElementById('current-chat-title').innerText = chat.title;
                 if(chat.retention) document.getElementById('retention-select').value = chat.retention;
-                currentChatId = chat.id;
-                updateChatListSidebar(); // Atualiza a barra lateral para acender a cor do chat novo
+                currentChatId = chatId;
+                updateChatListSidebar(); 
+            
+                // Cole esta linha exatamente aqui:
+                document.getElementById('user-input').focus();
             }
         }
 

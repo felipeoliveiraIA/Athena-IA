@@ -110,40 +110,6 @@ def chat():
 
     except Exception as e:
         return jsonify({'error': f'Erro interno: {str(e)}'}), 500
-        
-                    try:
-                        last_error = response.json().get('error', {}).get('message', f'Status {status_code}')
-                    except:
-                        last_error = "Erro desconhecido da API."
-                    
-                    # Continua tentando se for erro de rate limit, modelo off ou erro interno
-                    if status_code not in [400, 402, 403, 404, 502, 529]:
-                        break 
-
-            if not ai_reply:
-                return jsonify({'error': f'Todos os modelos gratuitos falharam/limite atingido. Último erro ({status_code}): {last_error}'}), status_code
-
-            return jsonify({'reply': ai_reply})
-
-        # Se for HD Local, roda no LM Studio
-        elif selected_model == 'local':
-            payload = {
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
-                ],
-                "temperature": 0.7,
-                "max_tokens": 2000
-            }
-            response = requests.post("http://127.0.0.1:1234/v1/chat/completions", json=payload, timeout=30)
-            response.raise_for_status()
-            ai_reply = response.json()['choices'][0]['message']['content']
-            return jsonify({'reply': ai_reply})
-
-    except requests.exceptions.ConnectionError:
-        return jsonify({'error': 'Falha de Conexão. Verifique a rede ou certifique-se de que o LM Studio está rodando localmente na porta 1234.'}), 503
-    except Exception as e:
-        return jsonify({'error': f'Erro interno do servidor ATHENA: {str(e)}'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))

@@ -414,7 +414,8 @@
         }
 
         // --- GESTÃO DE SESSÕES (Nova Conversa com Retenção) ---
-       function startNewChat() {
+       // --- GESTÃO DE SESSÕES (Nova Conversa com Retenção) ---
+        function startNewChat() {
             saveCurrentChat(); // SALVA O CHAT ATUAL ANTES DE LIMPAR A TELA PARA UM NOVO
             
             const chatBox = document.getElementById('chat-box');
@@ -424,15 +425,7 @@
                 </div>`;
             currentChatId = Date.now().toString();
             document.getElementById('current-chat-title').innerText = "Nova Conversa";
-            updateChatListSidebar(); // Remove os destaques da barra lateral
-        }
-
-            chatBox.innerHTML = `
-                <div class="text-center text-gray-500 text-sm mt-10">
-                    Novo Chat Iniciado. Base de dados pronta e isolada.
-                </div>`;
-            currentChatId = Date.now().toString();
-            document.getElementById('current-chat-title').innerText = "Nova Conversa";
+            updateChatListSidebar(); // Remove os destaques da barra lateral e atualiza
         }
 
         // --- RENDERIZAR CHATS SALVOS NA BARRA LATERAL COM 3 PONTINHOS ---

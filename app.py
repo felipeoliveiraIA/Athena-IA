@@ -53,7 +53,13 @@ def chat():
             def generate():
                 try:
                     response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, stream=True, timeout=40)
-                    response.raise_for_status()
+                    
+                    # NOVA LÓGICA: Se a API recusar, mostre o erro real em Markdown em vez de quebrar
+                    if not response.ok:
+                        error_text = response.text
+                        yield f"\n\n**Erro detalhado da API OpenRouter ({response.status_code}):**\n```json\n{error_text}\n```\n*Diagnóstico da ATHENA: Se for 404, o ID do modelo selecionado foi descontinuado ou alterado na versão Free do OpenRouter. Atualize o value no HTML.*"
+                        return
+
                     for line in response.iter_lines():
                         if line:
                             decoded_line = line.decode('utf-8')

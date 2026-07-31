@@ -76,12 +76,12 @@
                 </select>
             </div>
             <div class="flex items-center gap-3">
-                <!-- LISTA DE MODELOS ATUALIZADA (Sem modelos experimentais mortos) -->
+                <!-- LISTA DE MODELOS ATUALIZADA (Slugs Corrigidos OpenRouter) -->
                 <select id="model-select" class="bg-gray-800 text-sm text-gray-300 rounded px-3 py-2 border border-gray-600">
-                    <option value="google/gemini-2.0-flash-lite-preview-02-05:free">☁️ Gemini 2.0 Flash (Free Estável)</option>
-                    <option value="meta-llama/llama-3.3-70b-instruct:free">☁️ Llama 3.3 70B (Free Estável)</option>
-                    <option value="qwen/qwen-2.5-coder-32b-instruct:free">☁️ Qwen 2.5 Coder (Free)</option>
-                    <option value="deepseek/deepseek-r1:free">☁️ DeepSeek R1 (Free)</option>
+                    <option value="google/gemini-2.0-flash-lite-preview-02-05">☁️ Gemini 2.0 Flash (Estável)</option>
+                    <option value="meta-llama/llama-3.3-70b-instruct">☁️ Llama 3.3 70B (Estável)</option>
+                    <option value="qwen/qwen-2.5-coder-32b-instruct">☁️ Qwen 2.5 Coder</option>
+                    <option value="deepseek/deepseek-r1">☁️ DeepSeek R1</option>
                     <option value="local">💻 HD Local (LM Studio)</option>
                 </select>
                 <select id="voice-speed" class="bg-gray-800 text-sm text-gray-300 rounded px-2 py-2 border border-gray-600">
@@ -408,7 +408,6 @@
             alert("Novo traço adicionado ao perfil com sucesso de forma aditiva!");
         }
 
-        // --- GESTÃO DE SESSÕES (Nova Conversa com Retenção) ---
        // --- GESTÃO DE SESSÕES (Nova Conversa com Retenção) ---
         function startNewChat() {
             saveCurrentChat(); // SALVA O CHAT ATUAL ANTES DE LIMPAR A TELA PARA UM NOVO
@@ -420,7 +419,18 @@
                 </div>`;
             currentChatId = Date.now().toString();
             document.getElementById('current-chat-title').innerText = "Nova Conversa";
-            updateChatListSidebar(); // Remove os destaques da barra lateral e atualiza
+            
+            // CORREÇÃO: Força a criação do chat no LocalStorage imediatamente para aparecer na barra!
+            let chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+            chatHistory.push({
+                id: currentChatId,
+                title: "Nova Conversa",
+                content: chatBox.innerHTML,
+                retention: document.getElementById('retention-select').value
+            });
+            localStorage.setItem('athena_chats', JSON.stringify(chatHistory));
+
+            updateChatListSidebar(); // Atualiza a barra instantaneamente
         }
 
         // --- RENDERIZAR CHATS SALVOS NA BARRA LATERAL COM 3 PONTINHOS ---
@@ -491,7 +501,7 @@
         }
 
         // Funções operacionais dos 3 pontinhos
-        // --- NOVO MOTOR DE AUTO-SAVE DE SESSÕES ---
+       // --- NOVO MOTOR DE AUTO-SAVE DE SESSÕES ---
         function saveCurrentChat() {
             const chatBox = document.getElementById('chat-box');
             // Proteção: Não salvar se a tela for apenas a mensagem inicial do sistema vazia
@@ -503,8 +513,11 @@
             const currentTitle = document.getElementById('current-chat-title').innerText;
             const retention = document.getElementById('retention-select').value;
             
+            let needsSidebarUpdate = false;
+
             if (existingChatIndex !== -1) {
                 // Atualiza em tempo real o chat existente
+                if (chatHistory[existingChatIndex].title !== currentTitle) needsSidebarUpdate = true;
                 chatHistory[existingChatIndex].content = chatBox.innerHTML;
                 chatHistory[existingChatIndex].title = currentTitle;
                 chatHistory[existingChatIndex].retention = retention;
@@ -517,8 +530,15 @@
                     retention: retention
                 });
                 document.getElementById('current-chat-title').innerText = chatHistory[chatHistory.length - 1].title;
+                needsSidebarUpdate = true;
             }
+            
             localStorage.setItem('athena_chats', JSON.stringify(chatHistory));
+            
+            // CORREÇÃO: Força a atualização da barra esquerda se o nome mudou ou um chat novo surgiu
+            if (needsSidebarUpdate) {
+                updateChatListSidebar();
+            }
         }
         
         function loadChat(chatId) {

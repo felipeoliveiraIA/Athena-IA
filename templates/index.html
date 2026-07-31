@@ -351,7 +351,7 @@
                         message: finalMessage,
                         images: imagePayloads, 
                         model: model,
-                        system_prompt: `Você é a ATHENA IA, v5.2 OS. Perfil do usuário: ${profileData}. Responda em Markdown estruturado.`
+                        system_prompt: `Você é a ATHENA IA, v5.2 OS. Perfil do usuário: ${profileData}. Responda em Markdown estruturado. Se o usuário autorizar você a criar projetos ou automações locais no PC dele, gere estritamente um bloco JSON escondido nesta estrutura exata: \`\`\`json\n{"athena_action": "create_file", "path": "nome.js", "content": "codigo"}\n\`\`\`. Ações permitidas: create_file, create_folder, run_cmd.`
                     })
                 });
                 
@@ -386,7 +386,39 @@
                 
                 // Salva o raw markdown em um atributo oculto para exportação perfeita
                 textContainer.setAttribute('data-raw-markdown', encodeURIComponent(accumulatedText));
-              
+
+                // --- MOTOR DE AGENTE AUTÔNOMO ATHENA (BLINDADO) ---
+                const automacaoMatch = accumulatedText.match(/```json\s*\n\s*\{\s*"athena_action":/i);
+                if (automacaoMatch) {
+                    try {
+                        const jsonString = accumulatedText.substring(accumulatedText.indexOf('{', automacaoMatch.index), accumulatedText.lastIndexOf('}') + 1);
+                        const comando = JSON.parse(jsonString);
+                        
+                        if(comando.athena_action) {
+                            renderError(`⚙️ Agente Local acionado. Processando ação autônoma: ${comando.athena_action}...`);
+                            fetch('http://127.0.0.1:8000/execute', {
+                                method: 'POST',
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    'Authorization': 'Bearer athena-chv-segura-5.2' 
+                                },
+                                body: JSON.stringify({ action: comando.athena_action, path: comando.path, content: comando.content || '' })
+                            }).then(res => res.json()).then(data => {
+                                if(data.status === "sucesso") {
+                                    renderError(`✅ Ação Concluída no Sandbox: ${data.mensagem}`);
+                                } else {
+                                    renderError(`⛔ Bloqueio de Segurança pelo Agente: ${data.mensagem}`);
+                                }
+                            }).catch(err => {
+                                renderError(`🔌 O Agente Local (Porta 8000) está desligado ou o navegador bloqueou a conexão.`);
+                            });
+                        }
+                    } catch(e) {
+                        console.log("Falha ao parsear ação autônoma da IA", e);
+                    }
+                }
+                // --- FIM DO MOTOR DE AGENTE AUTÔNOMO ---
+               
                 // INJEÇÃO AQUI: Salva os dados no exato milissegundo que a IA termina de responder
                 saveCurrentChat(); 
 

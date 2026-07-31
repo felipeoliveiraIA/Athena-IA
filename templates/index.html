@@ -60,7 +60,7 @@
     </aside>
 
     <!-- Área Principal de Chat -->
-    <main class="flex-1 flex flex-col h-full relative bg-[#0f1219]">
+    <main class="flex-1 flex flex-col h-full relative bg-[#050505]">
         <!-- Cabeçalho de Controles -->
         <header class="bg-[#151922] p-4 flex justify-between items-center border-b border-gray-700 shadow-sm z-20">
             <div class="flex items-center gap-3">
@@ -107,8 +107,8 @@
         </div>
 
         <!-- Área de Input (WhatsApp Style) -->
-        <div class="w-full bg-[#0f1219] pt-2 pb-6 px-6 shrink-0 z-20 border-t border-gray-800">
-            <div class="max-w-4xl mx-auto relative flex items-end bg-[#151922] border border-gray-700 rounded-2xl shadow-2xl p-2">
+        <div class="w-full bg-[#050505] pt-2 pb-6 px-6 shrink-0 z-20 border-t border-gray-800">
+            <div class="max-w-4xl mx-auto relative flex items-end bg-[#111111] border border-gray-700 rounded-2xl shadow-2xl p-2">
                 <input type="file" id="file-attachment" class="hidden" accept=".txt,.md,image/png,image/jpeg" onchange="processAttachment(event)">
                 <button onclick="document.getElementById('file-attachment').click()" class="p-3 text-gray-400 hover:text-[#FACC15] transition shrink-0 cursor-pointer" title="Anexar Arquivo">📎</button>
                 <textarea id="user-input" class="flex-1 bg-transparent text-gray-100 p-3 resize-none outline-none max-h-[150px] min-h-[50px] overflow-y-auto placeholder-gray-500" placeholder="Mensagem para ATHENA IA (Shift+Enter quebra linha, Enter envia)..." rows="1"></textarea>                <!-- Botão Enviar substituído por aviãozinho apontando para a direita (Padrão WhatsApp), preservando sua cor dourada -->
@@ -533,7 +533,7 @@
 
         // --- 6. MODO LIVE: MOTOR MULTIMODAL (Voz + Visão + Janela Híbrida) ---
         let isLiveActive = false;
-        let localStream = null;
+        // let localStream = null; <- REMOVIDO: ESTAVA DUPLICADO E CAUSANDO O APAGÃO DO SISTEMA
         let pipWindowRef = null;
         
         // Variáveis do Motor de Voz

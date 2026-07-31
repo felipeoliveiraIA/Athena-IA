@@ -111,8 +111,7 @@
             <div class="max-w-4xl mx-auto relative flex items-end bg-[#151922] border border-gray-700 rounded-2xl shadow-2xl p-2">
                 <input type="file" id="file-attachment" class="hidden" accept=".txt,.md,image/png,image/jpeg" onchange="processAttachment(event)">
                 <button onclick="document.getElementById('file-attachment').click()" class="p-3 text-gray-400 hover:text-[#FACC15] transition shrink-0 cursor-pointer" title="Anexar Arquivo">📎</button>
-                <textarea id="user-input" class="flex-1 bg-transparent text-gray-100 p-3 resize-none outline-none max-h-[60vh] min-h-[50px] overflow-y-auto placeholder-gray-500" placeholder="Mensagem para ATHENA IA (Shift+Enter quebra linha, Enter envia)..." rows="1"></textarea>
-                <!-- Botão Enviar substituído por aviãozinho apontando para a direita (Padrão WhatsApp), preservando sua cor dourada -->
+                <textarea id="user-input" class="flex-1 bg-transparent text-gray-100 p-3 resize-none outline-none max-h-[150px] min-h-[50px] overflow-y-auto placeholder-gray-500" placeholder="Mensagem para ATHENA IA (Shift+Enter quebra linha, Enter envia)..." rows="1"></textarea>                <!-- Botão Enviar substituído por aviãozinho apontando para a direita (Padrão WhatsApp), preservando sua cor dourada -->
                 <button id="btn-enviar" onclick="handleSend()" class="bg-[#FACC15] text-black p-3 mb-1 mr-1 rounded-full hover:bg-[#EAB308] transition shrink-0 shadow-md flex items-center justify-center w-12 h-12">
                     <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
                 </button>
@@ -120,20 +119,28 @@
         </div>
 
     <!-- Container do Vídeo PiP (Injetado via Document PiP) -->
-   <!-- Container do Vídeo Flutuante Interno (Substituindo o antigo Document PiP) -->
-    <div id="live-video-container" class="absolute top-20 right-6 w-72 bg-[#151922] border border-gray-600 rounded-xl shadow-2xl z-50 flex-col overflow-hidden cursor-move hidden">
-        <div class="flex items-center justify-between w-full px-3 py-2 bg-gray-800 border-b border-gray-700">
+   <!-- Container do Vídeo Flutuante Interno e PiP Híbrido -->
+    <div id="live-video-container" class="absolute top-20 right-6 w-72 bg-[#151922] border border-gray-600 rounded-xl shadow-2xl z-50 flex-col overflow-hidden hidden">
+        <!-- Barra de Título Arrastável -->
+        <div id="live-header" class="flex items-center justify-between w-full px-3 py-2 bg-gray-800 border-b border-gray-700 cursor-move">
             <span class="font-bold text-[#FACC15] text-sm">🦉 ATHENA Live</span>
             <div class="flex items-center gap-2">
                 <div id="mic-pulse" class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div>
+                <button onclick="detachPiP()" title="Desafixar sobre o Windows" class="text-gray-400 hover:text-white text-xs">⧉</button>
                 <button onclick="toggleLiveMode()" class="text-gray-400 hover:text-red-500 text-xs font-bold">✕</button>
             </div>
         </div>
-        <!-- IMPORTANTE: muted impede o eco absoluto de você ouvindo a si mesmo -->
-        <video id="webcam-feed" autoplay playsinline muted class="w-full h-auto object-cover bg-black"></video>
-        <div class="p-2 w-full flex flex-col gap-2">
-            <button id="btn-pause-live" class="w-full bg-gray-700 text-white py-1.5 rounded hover:bg-gray-600 text-xs font-bold transition">⏸ Pausar IA</button>
-            <div id="ghost-bubble" class="text-[10px] text-gray-400 italic text-center min-h-[15px]">Ouvindo...</div>
+        <!-- Vídeo ajustado para não cortar o rosto (object-contain) -->
+        <video id="webcam-feed" autoplay playsinline muted class="w-full h-48 object-contain bg-black"></video>
+        <!-- Canvas invisível para capturar foto multimodal -->
+        <canvas id="live-canvas" class="hidden"></canvas>
+        
+        <div class="p-3 w-full flex flex-col gap-2 border-t border-gray-700 bg-[#0f1219]">
+            <div class="flex gap-2">
+                <button id="btn-pause-live" onclick="togglePauseLive()" class="flex-1 bg-gray-700 text-white py-1.5 rounded hover:bg-gray-600 text-xs font-bold transition">⏸ Pausar IA</button>
+                <button id="btn-transmit-live" onclick="manualLiveSend()" class="flex-1 bg-[#FACC15] text-black py-1.5 rounded hover:bg-[#EAB308] text-xs font-bold transition hidden">▶ Transmitir</button>
+            </div>
+            <div id="ghost-bubble" class="text-[11px] text-gray-400 italic text-center min-h-[16px] overflow-hidden whitespace-nowrap text-ellipsis border border-dashed border-gray-600 rounded p-1">Aguardando voz...</div>
         </div>
     </div>
 
@@ -493,23 +500,51 @@
             reader.readAsText(file);
         }
 
-        // --- 6. MODO LIVE (API Document Picture-in-Picture com Supressão de Eco) ---
+        // --- 6. MODO LIVE: MOTOR MULTIMODAL (Voz + Visão + Janela Híbrida) ---
         let isLiveActive = false;
+        let localStream = null;
         let pipWindowRef = null;
+        
+        // Variáveis do Motor de Voz
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let silenceTimer = null;
+        let isPausedLive = false;
+        let liveTranscriptBuffer = "";
 
+        // Funcionalidade de Arrastar a Janela (Drag and Drop interno)
+        const liveContainer = document.getElementById('live-video-container');
+        const liveHeader = document.getElementById('live-header');
+        let isDragging = false, currentX, currentY, initialX, initialY, xOffset = 0, yOffset = 0;
+
+        liveHeader.addEventListener('mousedown', dragStart);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', dragEnd);
+
+        function dragStart(e) {
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+            if (e.target === liveHeader || e.target.parentElement === liveHeader) isDragging = true;
+        }
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                currentX = e.clientX - initialX;
+                currentY = e.clientY - initialY;
+                xOffset = currentX;
+                yOffset = currentY;
+                liveContainer.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+            }
+        }
+        function dragEnd() { isDragging = false; }
+
+        // Inicialização do Modo Live
         async function toggleLiveMode() {
             const container = document.getElementById('live-video-container');
             const videoElement = document.getElementById('webcam-feed');
 
-            // Se já estiver ativo, o clique serve para desligar e fechar a janela
             if (isLiveActive) {
-                if (pipWindowRef) pipWindowRef.close(); 
-                return;
-            }
-
-            // Validação de compatibilidade do navegador
-            if (!('documentPictureInPicture' in window)) {
-                alert("Seu navegador atual não suporta a API Document Picture-in-Picture. Utilize o Chrome ou Edge atualizados.");
+                stopLiveMode();
                 return;
             }
 
@@ -517,49 +552,150 @@
             if (!consent) return;
 
             try {
-                // Abre a janela flutuante nativa do Sistema Operacional (Desacoplamento da Aba)
-                pipWindowRef = await window.documentPictureInPicture.requestWindow({
-                    width: 320,
-                    height: 420
-                });
-
-                // Move o container da interface principal para a janela PiP
-                container.style.display = 'flex';
-                pipWindowRef.document.body.appendChild(container);
-                pipWindowRef.document.body.style.margin = '0';
-                pipWindowRef.document.body.style.background = '#151922';
-
-                // Inicia WebCam e Microfone (Tratamentos anti-eco rigorosos aplicados)
+                // Liga o Hardware
                 localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: 300 }, 
-                    audio: { 
-                        echoCancellation: true, 
-                        noiseSuppression: true, 
-                        autoGainControl: true 
-                    } 
+                    video: { width: 320 }, 
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
                 });
                 
                 videoElement.srcObject = localStream;
+                container.style.display = 'flex';
                 isLiveActive = true;
+                
+                // Reset de posições
+                xOffset = 0; yOffset = 0;
+                container.style.transform = `translate3d(0px, 0px, 0)`;
 
-                // Restaura o container para a aba original de forma segura ao fechar o PiP
-                pipWindowRef.addEventListener("pagehide", () => {
-                    document.body.appendChild(container);
-                    container.style.display = 'none';
-                    if (localStream) {
-                        localStream.getTracks().forEach(t => t.stop());
-                    }
-                    isLiveActive = false;
-                    pipWindowRef = null;
-                });
+                initSpeechRecognition();
 
             } catch (err) {
-                console.error(err);
                 alert("Erro ao iniciar Live: " + err.message);
-                container.style.display = 'none';
-                isLiveActive = false;
+                stopLiveMode();
             }
         }
-    </script>
+
+        function stopLiveMode() {
+            isLiveActive = false;
+            document.getElementById('live-video-container').style.display = 'none';
+            if (localStream) localStream.getTracks().forEach(t => t.stop());
+            if (recognition) recognition.stop();
+            if (pipWindowRef) pipWindowRef.close();
+            clearTimeout(silenceTimer);
+            document.getElementById('ghost-bubble').innerText = "Aguardando voz...";
+        }
+
+        // Função nativa PiP para flutuar no Sistema Operacional
+        async function detachPiP() {
+            const videoElement = document.getElementById('webcam-feed');
+            if (videoElement !== document.pictureInPictureElement) {
+                await videoElement.requestPictureInPicture();
+            } else {
+                await document.exitPictureInPicture();
+            }
+        }
+
+        // Controle de Pausa/Retomar e Envio Manual
+        function togglePauseLive() {
+            isPausedLive = !isPausedLive;
+            const btnPause = document.getElementById('btn-pause-live');
+            const btnTransmit = document.getElementById('btn-transmit-live');
+            const micPulse = document.getElementById('mic-pulse');
+            
+            if (isPausedLive) {
+                btnPause.innerText = "▶ Retomar Escuta";
+                btnPause.classList.replace('bg-gray-700', 'bg-blue-600');
+                btnTransmit.classList.remove('hidden');
+                micPulse.classList.replace('bg-green-500', 'bg-yellow-500');
+                document.getElementById('ghost-bubble').innerText = "⏸️ Escuta contínua pausada...";
+            } else {
+                btnPause.innerText = "⏸ Pausar IA";
+                btnPause.classList.replace('bg-blue-600', 'bg-gray-700');
+                btnTransmit.classList.add('hidden');
+                micPulse.classList.replace('bg-yellow-500', 'bg-green-500');
+                document.getElementById('ghost-bubble').innerText = "Ouvindo...";
+            }
+        }
+
+        // --- CÉREBRO DE ESCUTA (SpeechRecognition) ---
+        function initSpeechRecognition() {
+            if (!SpeechRecognition) {
+                document.getElementById('ghost-bubble').innerText = "❌ Navegador não suporta voz.";
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'pt-BR';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onresult = (event) => {
+                // Interceptador de Eco: Ignora entrada se a IA estiver falando
+                if (isSpeaking) return; 
+
+                let interimTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        liveTranscriptBuffer += event.results[i][0].transcript + " ";
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                const currentText = liveTranscriptBuffer + interimTranscript;
+                if (currentText.trim()) {
+                    document.getElementById('ghost-bubble').innerText = currentText;
+                }
+
+                // Reinicia o timer de silêncio (3.5s) se NÃO estiver pausado
+                clearTimeout(silenceTimer);
+                if (!isPausedLive) {
+                    silenceTimer = setTimeout(() => {
+                        if (liveTranscriptBuffer.trim()) {
+                            processLiveInput(liveTranscriptBuffer.trim());
+                            liveTranscriptBuffer = ""; // Limpa buffer
+                        }
+                    }, 3500); // 3.5 segundos de silêncio
+                }
+            };
+
+            recognition.onerror = (event) => { console.log("Erro no Mic:", event.error); };
+            recognition.onend = () => {
+                // Mantém o microfone sempre escutando, a menos que o modo live seja desligado
+                if (isLiveActive && !isSpeaking) recognition.start();
+            };
+
+            recognition.start();
+        }
+
+        // Função de envio manual pelo botão Transmitir
+        function manualLiveSend() {
+            if (liveTranscriptBuffer.trim()) {
+                processLiveInput(liveTranscriptBuffer.trim());
+                liveTranscriptBuffer = "";
+                document.getElementById('ghost-bubble').innerText = "Enviado manual...";
+            }
+        }
+
+        // Integração Multimodal e disparo para a API
+        function processLiveInput(text) {
+            document.getElementById('ghost-bubble').innerText = "⚙️ Processando...";
+            
+            // Captura um frame da webcam (Magia Multimodal)
+            const video = document.getElementById('webcam-feed');
+            const canvas = document.getElementById('live-canvas');
+            let imagePayload = "";
+            if (video.videoWidth > 0) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+                imagePayload = "\n[Imagem da Câmera Capturada em Tempo Real]";
+            }
+
+            // Manda o texto pro chat normal (que aciona a IA)
+            userInput.value = text + imagePayload;
+            handleSend(); 
+            
+            // Tratamento anti-eco: O reconhecimento é desligado momentaneamente quando a IA responde (handleSend faz o botão Play ser ativado depois).
+        }
 </body>
 </html>

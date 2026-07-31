@@ -37,7 +37,7 @@ def chat():
                 "X-Title": "ATHENA IA v5.2 OS"
             }
             
-            payload = {
+          payload = {
                 "model": selected_model, 
                 "messages": [
                     {"role": "system", "content": system_prompt},
@@ -45,52 +45,44 @@ def chat():
                 ],
                 "max_tokens": 2000
             }
-            
-          payload = {
-        "model": selected_model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message}
-        ],
-        "max_tokens": 2000
-    }
 
-    # Lista de modelos de resgate 100% atualizada e funcional
-    fallback_models = [
-        selected_model, 
-        "google/gemini-2.0-flash-lite-preview-02-05:free", 
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "qwen/qwen-2.5-coder-32b-instruct:free",
-        "deepseek/deepseek-chat:free"
-    ]
+            # Lista de modelos de resgate 100% atualizada e funcional
+            fallback_models = [
+                selected_model, 
+                "google/gemini-2.0-flash-lite-preview-02-05:free", 
+                "meta-llama/llama-3.3-70b-instruct:free",
+                "qwen/qwen-2.5-coder-32b-instruct:free",
+                "deepseek/deepseek-chat:free"
+            ]
 
-    ai_reply = None
-    last_error = ""
-    status_code = 500
+            ai_reply = None
+            last_error = ""
+            status_code = 500
 
-    # Sistema de Auto-Resgate
-    for model_id in fallback_models:
-        payload["model"] = model_id
-        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
-        
-        if response.ok:
-            ai_reply = response.json()['choices'][0]['message']['content']
-            break # Sucesso!
-        else:
-            status_code = response.status_code
-            try:
-                last_error = response.json().get('error', {}).get('message', f'Status {status_code}')
-            except:
-                last_error = "Erro desconhecido da API."
-            
-            # Continua tentando se for erro de rate limit, modelo off ou erro interno
-            if status_code not in [400, 402, 403, 404, 502, 529]:
-                break 
+            # Sistema de Auto-Resgate
+            for model_id in fallback_models:
+                payload["model"] = model_id
+                # APRIMORAMENTO: Timeout de 40s adicionado para evitar queda por demora da IA
+                response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=40)
+                
+                if response.ok:
+                    ai_reply = response.json()['choices'][0]['message']['content']
+                    break # Sucesso!
+                else:
+                    status_code = response.status_code
+                    try:
+                        last_error = response.json().get('error', {}).get('message', f'Status {status_code}')
+                    except:
+                        last_error = "Erro desconhecido da API."
+                    
+                    # Continua tentando se for erro de rate limit, modelo off ou erro interno
+                    if status_code not in [400, 402, 403, 404, 502, 529]:
+                        break 
 
-    if not ai_reply:
-        return jsonify({'error': f'Todos os modelos gratuitos falharam/limite atingido. Último erro ({status_code}): {last_error}'}), status_code
+            if not ai_reply:
+                return jsonify({'error': f'Todos os modelos gratuitos falharam/limite atingido. Último erro ({status_code}): {last_error}'}), status_code
 
-    return jsonify({'reply': ai_reply})
+            return jsonify({'reply': ai_reply})
 
         # Se for HD Local, roda no LM Studio
         elif selected_model == 'local':

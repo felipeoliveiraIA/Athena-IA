@@ -286,22 +286,23 @@
             chatBox.insertAdjacentHTML('beforeend', aiHtml);
             chatBox.scrollTop = chatBox.scrollHeight;
 
-            const textContainer = document.getElementById(uniqueId);
-            let accumulatedText = "";
+           const textContainer = document.getElementById(uniqueId);
+           let accumulatedText = "";
 
-            // Prepara os textos dos arquivos .txt inseridos
-                let attachedText = "";
-                const imagePayloads = [];
-                
-                globalAttachments.forEach(f => {
-                    if (f.type.startsWith('text/')) {
-                        attachedText += `\n\n[Conteúdo Anexado: ${f.name}]:\n${f.data}`;
-                    } else if (f.type.startsWith('image/')) {
-                        imagePayloads.push(f.data);
-                    }
-                });
+           try {
+               // Prepara os textos dos arquivos .txt inseridos
+               let attachedText = "";
+               const imagePayloads = [];
 
-                const finalMessage = text + attachedText;
+               globalAttachments.forEach(f => {
+                   if (f.type.startsWith('text/')) {
+                       attachedText += `\n[Conteúdo Anexado: ${f.name}]:\n${f.data}`;
+                   } else if (f.type.startsWith('image/')) {
+                       imagePayloads.push(f.data);
+                   }
+               });
+
+               const finalMessage = text + attachedText;
 
                 const response = await fetch('/api/chat', {
                     method: 'POST',

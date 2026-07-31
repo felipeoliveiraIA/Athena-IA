@@ -297,15 +297,18 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        function renderAIMessage(markdownText) {
+       function renderAIMessage(markdownText) {
             const chatBox = document.getElementById('chat-box');
+            
+            // APRIMORAMENTO: Configuração para quebras de linha mais limpas e preservação estrutural
+            marked.setOptions({ breaks: true, gfm: true });
             const parsedHtml = marked.parse(markdownText);
             
             const aiHtml = `
                 <div class="flex gap-4 max-w-4xl ml-4 mr-auto w-full">
                     <div class="w-8 h-8 rounded-full bg-[#151922] border border-[#FACC15] flex items-center justify-center shrink-0 text-sm shadow-[0_0_10px_rgba(250,204,21,0.2)]">🦉</div>
                     <div class="flex-1 space-y-2">
-                        <div class="bg-[#151922] text-gray-200 p-5 rounded-2xl rounded-tl-sm border border-gray-800 shadow-lg prose prose-invert prose-yellow max-w-none">
+                        <div class="bg-[#151922] text-gray-200 p-5 rounded-2xl rounded-tl-sm border border-gray-800 shadow-lg prose prose-invert prose-yellow max-w-none overflow-x-auto">
                             ${parsedHtml}
                         </div>
                         <div class="flex gap-2">
@@ -320,7 +323,9 @@
                 </div>`;
                 
             chatBox.insertAdjacentHTML('beforeend', aiHtml);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            
+            // APRIMORAMENTO: Rolagem suave garantida após renderização de elementos grandes
+            setTimeout(() => { chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' }); }, 100);
         }
 
         function renderError(errMsg) {

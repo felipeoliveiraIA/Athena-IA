@@ -62,13 +62,28 @@ def chat():
             }
 
             def generate():
+                # Define o orquestrador padrão e robusto para contingência
+                fallback_model = 'qwen/qwen-2.5-coder-32b-instruct:free'
+                current_model = selected_model
+                
                 try:
+                    payload["model"] = current_model
                     response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, stream=True, timeout=40)
                     
-                    # NOVA LÓGICA: Se a API recusar, mostre o erro real em Markdown em vez de quebrar
+                    # SISTEMA DE ANTECIPAÇÃO DE ERROS (AUTO-FALLBACK)
+                    # Se a API der erro de limite (402, 429) ou modelo inexistente (404, 400)
+                    if not response.ok and response.status_code in [400, 401, 402, 403, 404, 429, 522]:
+                        if current_model != fallback_model:
+                            yield f"\n\n> ⚠️ **Interceptação ATHENA:** O modelo `{current_model}` recusou a conexão (Erro {response.status_code}). Acionando redundância e transferindo o payload para o orquestrador autônomo padrão (`{fallback_model}`)...\n\n"
+                            
+                            # Tenta novamente com o modelo de fallback
+                            payload["model"] = fallback_model
+                            response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, stream=True, timeout=40)
+                    
+                    # Se mesmo o fallback falhar, exibe o erro exato de forma limpa
                     if not response.ok:
                         error_text = response.text
-                        yield f"\n\n**Erro detalhado da API OpenRouter ({response.status_code}):**\n```json\n{error_text}\n```\n*Diagnóstico da ATHENA: Se for 404, o ID do modelo selecionado foi descontinuado ou alterado na versão Free do OpenRouter. Atualize o value no HTML.*"
+                        yield f"\n\n**Erro Crítico da Nuvem ({response.status_code}):**\n```json\n{error_text}\n```\n*Diagnóstico ATHENA: A infraestrutura OpenRouter limitou a requisição. Para garantir orquestração 100% gratuita, autônoma e ilimitada sem depender de servidores de terceiros, altere o modelo para '💻 HD Local (LM Studio)' no menu superior.*"
                         return
 
                     for line in response.iter_lines():

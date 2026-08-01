@@ -476,7 +476,14 @@
                 saveCurrentChat();
 
             } catch (error) {
-                textContainer.innerHTML = `<span class="text-red-400 font-mono text-sm">⚠️ Erro: ${error.message}</span>`;
+                // CORREÇÃO APLICADA: Tratamento inteligente do objeto de erro para impedir que a tela mostre '[object Object]'
+                const errorDetails = (!error.message || error.message.includes("[object Object]")) 
+                    ? "Conexão Recusada. O navegador bloqueou o acesso ao localhost por questões de segurança (CORS)." 
+                    : error.message;
+
+                textContainer.innerHTML = `
+                    <span class="text-red-400 font-mono text-sm">⚠️ Falha na Conexão: ${errorDetails}</span><br><br>
+                    <span class="text-gray-400 text-xs">🛑 SOLUÇÃO APLICADA: Tentando usar o HD Local através do site online (Render)? Para que o modo 'HD Local' funcione 100% sem bloqueios do navegador, abra o arquivo <b>index.html</b> diretamente no seu computador ou rode o Flask local (http://localhost:10000).</span>`;
                 
                 // INJEÇÃO AQUI: Salva no histórico mesmo se der erro, para não perder seu prompt
                 saveCurrentChat(); 

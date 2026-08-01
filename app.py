@@ -23,7 +23,7 @@ def chat():
     data = request.json
     user_message = data.get('message', '')
     images = data.get('images', []) 
-    selected_model = data.get('model', 'qwen/qwen-2.5-coder-32b-instruct:free') 
+    selected_model = data.get('model', 'google/gemini-2.0-flash-lite-preview-02-05:free')
     system_prompt = data.get('system_prompt', 'Você é a ATHENA IA. Responda em Markdown limpo.')
 
     if not user_message and not images:
@@ -62,8 +62,8 @@ def chat():
             }
 
             def generate():
-                # Define o orquestrador padrão e robusto para contingência
-                fallback_model = 'qwen/qwen-2.5-coder-32b-instruct:free'
+                # Define o orquestrador padrão e robusto para contingência (Atualizado para Gemini)
+                fallback_model = 'google/gemini-2.0-flash-lite-preview-02-05:free'
                 current_model = selected_model
                 
                 try:

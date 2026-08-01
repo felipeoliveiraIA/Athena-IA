@@ -61,13 +61,21 @@ def chat():
                 "stream": True # Ativa o Streaming no OpenRouter
             }
 
+            payload = {
+                "model": selected_model, 
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": final_content}
+                ],
+                "max_tokens": 2000,
+                "stream": True # Ativa o Streaming no OpenRouter
+            }
+
             def generate():
-                # Define o orquestrador padrão e robusto para contingência
-                # [CORREÇÃO ATHENA]: Rota atualizada para o endpoint ativo e mais estável atual.
-                fallback_model = 'google/gemini-2.0-flash-lite-preview-02-05:free'
+                # Define o orquestrador padrão e robusto para contingência atualizado para IDs válidos
+                fallback_model = 'google/gemini-2.0-flash-exp:free'
                 
                 try:
-                    # CORREÇÃO APLICADA AQUI: Substituição de current_model (inexistente) por selected_model
                     payload["model"] = selected_model
                     response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, stream=True, timeout=40)
                     

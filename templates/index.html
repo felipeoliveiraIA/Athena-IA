@@ -353,6 +353,7 @@
                         images: imagePayloads, 
                         model: model,
                         system_prompt: `Você é a ATHENA IA, v5.2 OS. Perfil do usuário: ${profileData}. Responda em Markdown estruturado (ideal para exportação Obsidian). Você atua como uma engenheira de software autônoma. Se o usuário pedir para criar projetos, sites, pastas ou arquivos locais, você DEVE gerar estritamente um bloco JSON escondido nesta estrutura exata: \`\`\`json\n{"athena_action": "create_file", "path": "nome_do_arquivo.extensao", "content": "codigo completo aqui"}\n\`\`\`. Ações permitidas: create_file, create_folder, run_cmd.`
+                    })
                 });
                 
                 // Limpa os anexos visuais APÓS enviar

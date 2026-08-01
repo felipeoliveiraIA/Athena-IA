@@ -23,7 +23,7 @@ def chat():
     data = request.json
     user_message = data.get('message', '')
     images = data.get('images', []) 
-    selected_model = data.get('model', 'google/gemini-2.0-flash-lite-preview-02-05:free')
+    selected_model = data.get('model', 'google/gemini-2.0-flash-exp:free')
     system_prompt = data.get('system_prompt', 'Você é a ATHENA IA. Responda em Markdown limpo.')
 
     if not user_message and not images:
@@ -62,9 +62,8 @@ def chat():
             }
 
             def generate():
-                # Define o orquestrador padrão e robusto para contingência (Atualizado para Gemini)
-                fallback_model = 'google/gemini-2.0-flash-lite-preview-02-05:free'
-                current_model = selected_model
+                # Define o orquestrador padrão e robusto para contingência (Atualizado para Gemini Flash Experimental)
+                fallback_model = 'google/gemini-2.0-flash-exp:free'
                 
                 try:
                     payload["model"] = current_model

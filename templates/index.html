@@ -356,7 +356,8 @@
 
                // 1. DESVIO DE ARQUITETURA: Conexão Direta do Navegador para o LM Studio (Bypass Nuvem)
                if (model === 'local') {
-                   response = await fetch('http://127.0.0.1:1234/v1/chat/completions', {
+                   // CORREÇÃO APLICADA: Substituído 127.0.0.1 por localhost para alinhar exatamente com o servidor do LM Studio e evitar bloqueio CORS.
+                   response = await fetch('http://localhost:1234/v1/chat/completions', {
                        method: 'POST',
                        headers: { 'Content-Type': 'application/json' },
                        body: JSON.stringify({
@@ -371,6 +372,7 @@
                        })
                    });
                } else {
+                   
                    // Roteamento padrão para APIs Cloud via Backend (Render)
                    response = await fetch('/api/chat', {
                        method: 'POST',

@@ -72,26 +72,39 @@ def chat():
             }
 
             def generate():
-                # Define o orquestrador padrão e robusto para contingência atualizado para IDs válidos
-                fallback_model = 'google/gemini-2.0-flash-exp:free'
+                # Lista de redundância dinâmica (se um cair, tenta o próximo)
+                fallback_models = [
+                    'qwen/qwen-2.5-coder-32b-instruct:free',
+                    'meta-llama/llama-3.3-70b-instruct:free',
+                    'google/gemini-2.0-pro-exp-02-05:free' # ID atualizado e estável
+                ]
                 
                 try:
                     payload["model"] = selected_model
                     response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, stream=True, timeout=40)
                     
-                    # SISTEMA DE ANTECIPAÇÃO DE ERROS (AUTO-FALLBACK)
+                    # SISTEMA DE ANTECIPAÇÃO DE ERROS (AUTO-FALLBACK MÚLTIPLO)
                     if not response.ok and response.status_code in [400, 401, 402, 403, 404, 429, 522]:
-                        if selected_model != fallback_model:
-                            yield f"\n\n> ⚠️ **Interceptação ATHENA:** O modelo `{selected_model}` recusou a conexão (Erro {response.status_code}). Acionando redundância e transferindo o payload para o orquestrador autônomo padrão (`{fallback_model}`)...\n\n"
-                            
-                            # Tenta novamente com o modelo de fallback
-                            payload["model"] = fallback_model
-                            response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, stream=True, timeout=40)
-                    
-                    # Se mesmo o fallback falhar, exibe o erro exato de forma limpa
+                        fallback_success = False
+                        
+                        for f_model in fallback_models:
+                            if selected_model != f_model:
+                                yield f"\n\n> ⚠️ **Interceptação ATHENA:** O modelo `{selected_model}` recusou a conexão (Erro {response.status_code}). Acionando redundância para (`{f_model}`)...\n\n"
+                                
+                                payload["model"] = f_model
+                                response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, stream=True, timeout=40)
+                                
+                                if response.ok:
+                                    fallback_success = True
+                                    break
+                                else:
+                                    # Atualiza o selected_model para o próximo erro fazer sentido no log
+                                    selected_model = f_model 
+                        
+                    # Se todos os fallbacks falharem na nuvem, informa o erro e sugere o Local
                     if not response.ok:
                         error_text = response.text
-                        yield f"\n\n**Erro Crítico da Nuvem ({response.status_code}):**\n```json\n{error_text}\n```\n*Diagnóstico ATHENA: A infraestrutura OpenRouter limitou a requisição. Para garantir orquestração 100% gratuita, autônoma e ilimitada sem depender de servidores de terceiros, altere o modelo para '💻 HD Local (LM Studio)' no menu superior.*"
+                        yield f"\n\n**Erro Crítico da Nuvem ({response.status_code}):**\n```json\n{error_text}\n```\n*Diagnóstico ATHENA: Todos os orquestradores em nuvem falharam (possível queda do OpenRouter ou ID desativado). Para garantir uso 100% autônomo, altere o modelo para '💻 HD Local (LM Studio)'.*"
                         return
 
                     for line in response.iter_lines():

@@ -371,8 +371,14 @@
                 // AQUI ESTAVA O ERRO (um "});" perdido que quebrava tudo foi removido).
 
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `Erro HTTP ${response.status}`);
+                    let errorMsg = `Erro HTTP ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error ? JSON.stringify(errorData.error) : errorMsg;
+                    } catch(e) {
+                        errorMsg += " (O Servidor Cloud não retornou detalhes. Possível sobrecarga/fila no modelo).";
+                    }
+                    throw new Error(`Conexão Recusada pela Nuvem: ${errorMsg}\n Solução: Tente selecionar outro modelo gratuito na lista superior ou ative o '💻 HD Local' para uso ilimitado sem internet.`);
                 }
 
                 // Lógica de Leitura do Streaming (SSE)

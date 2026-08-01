@@ -61,16 +61,6 @@ def chat():
                 "stream": True # Ativa o Streaming no OpenRouter
             }
 
-            payload = {
-                "model": selected_model, 
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": final_content}
-                ],
-                "max_tokens": 2000,
-                "stream": True # Ativa o Streaming no OpenRouter
-            }
-
             def generate():
                 nonlocal selected_model 
                 

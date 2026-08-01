@@ -62,18 +62,20 @@ def chat():
             }
 
             def generate():
-                # Define o orquestrador padrão e robusto para contingência (Atualizado para Gemini Flash Experimental)
-                fallback_model = 'google/gemini-2.0-flash-exp:free'
+                def generate():
+                # Define o orquestrador padrão e robusto para contingência (Atualizado conforme Relatório v5.2)
+                fallback_model = 'google/gemini-2.0-flash-lite-preview-02-05:free'
                 
                 try:
-                    payload["model"] = current_model
+                    # CORREÇÃO CRÍTICA: Substituído 'current_model' (que gerava erro fatal) por 'selected_model'
+                    payload["model"] = selected_model
                     response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, stream=True, timeout=40)
                     
                     # SISTEMA DE ANTECIPAÇÃO DE ERROS (AUTO-FALLBACK)
                     # Se a API der erro de limite (402, 429) ou modelo inexistente (404, 400)
                     if not response.ok and response.status_code in [400, 401, 402, 403, 404, 429, 522]:
-                        if current_model != fallback_model:
-                            yield f"\n\n> ⚠️ **Interceptação ATHENA:** O modelo `{current_model}` recusou a conexão (Erro {response.status_code}). Acionando redundância e transferindo o payload para o orquestrador autônomo padrão (`{fallback_model}`)...\n\n"
+                        if selected_model != fallback_model:
+                            yield f"\n\n> ⚠️ **Interceptação ATHENA:** O modelo `{selected_model}` recusou a conexão (Erro {response.status_code}). Acionando redundância e transferindo o payload para o orquestrador autônomo padrão (`{fallback_model}`)...\n\n"
                             
                             # Tenta novamente com o modelo de fallback
                             payload["model"] = fallback_model

@@ -72,6 +72,9 @@ def chat():
             }
 
             def generate():
+                # 🟢 CORREÇÃO MÁGICA: Diz ao Python que a variável vem de fora
+                nonlocal selected_model 
+                
                 # Lista de redundância dinâmica (se um cair, tenta o próximo)
                 fallback_models = [
                     'qwen/qwen-2.5-coder-32b-instruct:free',
@@ -96,6 +99,7 @@ def chat():
                                 
                                 if response.ok:
                                     fallback_success = True
+                                    selected_model = f_model # Atualiza o modelo atual com sucesso
                                     break
                                 else:
                                     # Atualiza o selected_model para o próximo erro fazer sentido no log
@@ -123,8 +127,6 @@ def chat():
                                     continue
                 except Exception as e:
                     yield f"\n\n**Erro de Conexão (Streaming):** {str(e)}"
-                    
-            return Response(generate(), mimetype='text/event-stream')
                 
 
         elif selected_model == 'local':

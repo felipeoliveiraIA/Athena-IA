@@ -63,7 +63,8 @@ def chat():
 
             def generate():
                 # Define o orquestrador padrão e robusto para contingência
-                fallback_model = 'google/gemini-2.0-flash-exp:free'
+                # [CORREÇÃO ATHENA]: Rota atualizada para o endpoint ativo e mais estável atual.
+                fallback_model = 'google/gemini-2.0-flash-lite-preview-02-05:free'
                 
                 try:
                     # CORREÇÃO APLICADA AQUI: Substituição de current_model (inexistente) por selected_model

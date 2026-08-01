@@ -62,17 +62,15 @@ def chat():
             }
 
             def generate():
-                def generate():
-                # Define o orquestrador padrão e robusto para contingência (Atualizado conforme Relatório v5.2)
-                fallback_model = 'google/gemini-2.0-flash-lite-preview-02-05:free'
+                # Define o orquestrador padrão e robusto para contingência
+                fallback_model = 'google/gemini-2.0-flash-exp:free'
                 
                 try:
-                    # CORREÇÃO CRÍTICA: Substituído 'current_model' (que gerava erro fatal) por 'selected_model'
+                    # CORREÇÃO APLICADA AQUI: Substituição de current_model (inexistente) por selected_model
                     payload["model"] = selected_model
                     response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, stream=True, timeout=40)
                     
                     # SISTEMA DE ANTECIPAÇÃO DE ERROS (AUTO-FALLBACK)
-                    # Se a API der erro de limite (402, 429) ou modelo inexistente (404, 400)
                     if not response.ok and response.status_code in [400, 401, 402, 403, 404, 429, 522]:
                         if selected_model != fallback_model:
                             yield f"\n\n> ⚠️ **Interceptação ATHENA:** O modelo `{selected_model}` recusou a conexão (Erro {response.status_code}). Acionando redundância e transferindo o payload para o orquestrador autônomo padrão (`{fallback_model}`)...\n\n"
@@ -103,8 +101,9 @@ def chat():
                                     continue
                 except Exception as e:
                     yield f"\n\n**Erro de Conexão (Streaming):** {str(e)}"
-
+                    
             return Response(generate(), mimetype='text/event-stream')
+                
 
         elif selected_model == 'local':
             # LM Studio também suporta streaming

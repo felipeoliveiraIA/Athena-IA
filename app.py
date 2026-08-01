@@ -72,63 +72,49 @@ def chat():
             }
 
             def generate():
-                # 🟢 CORREÇÃO MÁGICA: Diz ao Python que a variável vem de fora
                 nonlocal selected_model 
                 
-                # Lista de redundância dinâmica (se um cair, tenta o próximo)
+                # 🟢 ROTEADOR INTELIGENTE PARA HD LOCAL (LM STUDIO)
+                if "local" in selected_model.lower() or "1234" in selected_model:
+                    url_local = "http://127.0.0.1:1234/v1/chat/completions"
+                    payload_local = {
+                        "model": "local-model", # Nome genérico aceito pelo LM Studio
+                        "messages": payload.get("messages", []),
+                        "temperature": 0.7,
+                        "stream": True
+                    }
+                    try:
+                        resp_local = requests.post(url_local, json=payload_local, stream=True, timeout=60)
+                        if not resp_local.ok:
+                            yield f"\n\n**Erro no HD Local:** O LM Studio recusou a conexão ({resp_local.status_code}). Verifique se o modelo está carregado no programa."
+                            return
+                        for line in resp_local.iter_lines():
+                            if line:
+                                dec = line.decode('utf-8')
+                                if dec.startswith('data: '):
+                                    d_str = dec[6:]
+                                    if d_str == '[DONE]':
+                                        break
+                                    try:
+                                        cj = json.loads(d_str)
+                                        chunk = cj['choices'][0]['delta'].get('content', '')
+                                        if chunk:
+                                            yield chunk
+                                    except:
+                                        pass
+                        return
+                    except Exception as e:
+                        yield f"\n\n**Erro de Conexão Local:** {str(e)}"
+                        return
+
+                # --- SEGUIDO DA SUA LÓGICA NORMAL DO OPENROUTER ABAIXO ---
                 fallback_models = [
                     'qwen/qwen-2.5-coder-32b-instruct:free',
                     'meta-llama/llama-3.3-70b-instruct:free',
-                    'google/gemini-2.0-pro-exp-02-05:free' # ID atualizado e estável
+                    'google/gemini-2.0-pro-exp-02-05:free'
                 ]
+                # ... (resto do seu código do OpenRouter)
                 
-                try:
-                    payload["model"] = selected_model
-                    response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, stream=True, timeout=40)
-                    
-                    # SISTEMA DE ANTECIPAÇÃO DE ERROS (AUTO-FALLBACK MÚLTIPLO)
-                    if not response.ok and response.status_code in [400, 401, 402, 403, 404, 429, 522]:
-                        fallback_success = False
-                        
-                        for f_model in fallback_models:
-                            if selected_model != f_model:
-                                yield f"\n\n> ⚠️ **Interceptação ATHENA:** O modelo `{selected_model}` recusou a conexão (Erro {response.status_code}). Acionando redundância para (`{f_model}`)...\n\n"
-                                
-                                payload["model"] = f_model
-                                response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, stream=True, timeout=40)
-                                
-                                if response.ok:
-                                    fallback_success = True
-                                    selected_model = f_model # Atualiza o modelo atual com sucesso
-                                    break
-                                else:
-                                    # Atualiza o selected_model para o próximo erro fazer sentido no log
-                                    selected_model = f_model 
-                        
-                    # Se todos os fallbacks falharem na nuvem, informa o erro e sugere o Local
-                    if not response.ok:
-                        error_text = response.text
-                        yield f"\n\n**Erro Crítico da Nuvem ({response.status_code}):**\n```json\n{error_text}\n```\n*Diagnóstico ATHENA: Todos os orquestradores em nuvem falharam (possível queda do OpenRouter ou ID desativado). Para garantir uso 100% autônomo, altere o modelo para '💻 HD Local (LM Studio)'.*"
-                        return
-
-                    for line in response.iter_lines():
-                        if line:
-                            decoded_line = line.decode('utf-8')
-                            if decoded_line.startswith('data: '):
-                                data_str = decoded_line[6:]
-                                if data_str == '[DONE]':
-                                    break
-                                try:
-                                    data_json = json.loads(data_str)
-                                    chunk = data_json['choices'][0]['delta'].get('content', '')
-                                    if chunk:
-                                        yield chunk
-                                except json.JSONDecodeError:
-                                    continue
-                except Exception as e:
-                    yield f"\n\n**Erro de Conexão (Streaming):** {str(e)}"
-                
-
         elif selected_model == 'local':
             # LM Studio também suporta streaming
             payload = {

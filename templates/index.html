@@ -415,12 +415,20 @@
                         sseBuffer = lines.pop(); // Guarda pedaços incompletos para a próxima iteração
                         
                         for (const line of lines) {
-                            if (line.startsWith('data: ') && !line.includes('[DONE]')) {
+                            // CORREÇÃO APLICADA: Limpeza extra de espaços em branco (trim) para garantir que o prefixo 'data:' seja lido perfeitamente
+                            const trimmedLine = line.trim();
+                            if (trimmedLine.startsWith('data:') && !trimmedLine.includes('[DONE]')) {
                                 try {
-                                    const parsed = JSON.parse(line.substring(6));
-                                    const token = parsed.choices[0].delta?.content || '';
-                                    accumulatedText += token;
-                                } catch(e) {}
+                                    // Isola o JSON de forma robusta e segura
+                                    const jsonStr = trimmedLine.replace(/^data:\s*/, '').trim();
+                                    if(jsonStr) {
+                                        const parsed = JSON.parse(jsonStr);
+                                        const token = parsed.choices[0].delta?.content || '';
+                                        accumulatedText += token;
+                                    }
+                                } catch(e) {
+                                    console.log("Aguardando próximo chunk válido do LM Studio...");
+                                }
                             }
                         }
                     } else {

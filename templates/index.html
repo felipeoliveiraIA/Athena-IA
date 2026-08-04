@@ -1,155 +1,1168 @@
-import os
-import requests
-from flask import Flask, render_template, request, jsonify
-from flask_cors import CORS
-
-# --- INÍCIO DA SOLUÇÃO DEFINITIVA (Caminhos Absolutos) ---
-# Calcula o caminho real do arquivo atual para não depender do terminal
-diretorio_base = os.path.dirname(os.path.abspath(__file__))
-# Força o Flask a olhar estritamente para a pasta 'templates' dentro deste diretório
-pasta_templates = os.path.join(diretorio_base, 'templates')
-
-app = Flask(__name__, template_folder=pasta_templates)
-# --- FIM DA SOLUÇÃO DEFINITIVA ---
-CORS(app)
-
-# Busca a chave de forma segura nas variáveis de ambiente do Render
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-# Configuração da URL de Origem para liberação de uso na API gratuita
-SITE_URL = os.environ.get("SITE_URL", "https://athena-ia.onrender.com")
-
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-import json
-from flask import Response
-
-@app.route('/api/chat', methods=['POST'])
-def chat():
-    data = request.json
-    user_message = data.get('message', '')
-    images = data.get('images', []) 
-    selected_model = data.get('model', 'google/gemini-2.0-flash-exp:free')
-    system_prompt = data.get('system_prompt', 'Você é a ATHENA IA. Responda em Markdown limpo.')
-
-    if not user_message and not images:
-        return jsonify({'error': 'Mensagem vazia.'}), 400
-
-    try:
-        # Montagem Estrutural Multimodal Exigida pelo OpenRouter
-        message_content = []
-        if user_message:
-            message_content.append({"type": "text", "text": user_message})
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATHENA IA - v5.2 OS</title>
+    <!-- Ícone da Aba do Navegador (Favicon) - Emoji de Coruja -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦉</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- [CORREÇÃO ATHENA]: Importação da biblioteca Marked.js para habilitar o Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* Ajuste do Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #131314; } /* Cinza super escuro Gemini */
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4B5563; }
         
-        for img_base64 in images:
-            message_content.append({"type": "image_url", "image_url": {"url": img_base64}})
-            
-        final_content = message_content if images else user_message
+        /* Container Oculto para o PiP */
+        #live-video-container { display: none; }
+        
+        /* Animação do Mic Pulse */
+        @keyframes pulse-mic { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+        .mic-active { animation: pulse-mic 1.5s infinite; background-color: #22c55e; } /* Verde */
+        .mic-paused { background-color: #ef4444; } /* Vermelho */
+        .mic-listening { background-color: #eab308; } /* Amarelo (escuta prolongada) */
+    </style>
+</head>
+<body class="bg-[#050505] text-gray-200 h-screen flex overflow-hidden font-sans">
 
-        if selected_model != 'local':
-            if not OPENROUTER_API_KEY:
-                return jsonify({'error': 'Chave da API OpenRouter não configurada.'}), 500
+<!-- Barra Lateral -->
+    <aside id="sidebar" class="bg-[#111111] w-72 flex flex-col h-full border-r border-gray-800 shadow-xl z-30 shrink-0 absolute md:relative transition-transform duration-300 -translate-x-full md:translate-x-0">
+        <div class="p-5 flex items-center justify-between gap-2 font-bold text-[#FACC15] text-2xl tracking-wide whitespace-nowrap">
+            <span>🦉 ATHENA IA <span class="text-xs bg-orange-900 text-orange-200 px-2 py-0.5 rounded-full ml-1 align-middle">v5.2</span></span>
+            <button onclick="toggleSidebar()" class="md:hidden text-gray-400 text-lg">✕</button>
+        </div>
+        
+        <div class="px-4 mb-4 mt-2">
+            <button onclick="openProfile()" class="w-full bg-gray-800 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition flex items-center justify-center gap-2 mb-2 text-sm border border-gray-600">
+                🧠 Memória & Perfil
+            </button>
+            <button onclick="learnFromChat()" class="w-full bg-gray-800 text-yellow-500 py-2 rounded-lg hover:bg-gray-700 transition flex items-center justify-center gap-2 mb-3 text-xs border border-gray-600 border-dashed">
+                ⚡ IA Aprender & Adicionar
+            </button>
+            <button onclick="startNewChat()" class="w-full bg-[#FACC15] text-black font-bold py-3 rounded-lg hover:bg-[#EAB308] transition flex items-center justify-center gap-2 shadow-lg">
+                + Nova Conversa
+            </button>
             
-            headers = {
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": SITE_URL,
-                "X-Title": "ATHENA IA v5.2 OS"
-            }
-            
-            payload = {
-                "model": selected_model, 
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": final_content}
-                ],
-                "max_tokens": 2000,
-                "stream": True # Ativa o Streaming no OpenRouter
-            }
+            <!-- NOVA FUNCIONALIDADE: Barra de Pesquisa de Chats -->
+        <div class="relative mt-2">
+            <input type="text" id="search-chats" onkeyup="filterChats()" placeholder="Pesquisar conversas..." class="w-full bg-[#1a1a1a] text-gray-300 text-sm rounded-lg pl-9 pr-3 py-2 border border-gray-700 outline-none focus:border-[#FACC15] transition placeholder-gray-500">
+            <span class="absolute left-3 top-2.5 text-gray-500 text-xs">🔍</span>
+        </div>
+    </div>
+       
+        <div class="flex-1 overflow-y-auto px-4" id="chat-list">
+            <!-- Lista de chats do LocalStorage renderizada aqui -->
+        </div>
 
-            def generate():
-                nonlocal selected_model 
+        <div class="p-4 border-t border-gray-700 flex flex-col gap-2">
+            <button onclick="exportBunker()" class="w-full bg-gray-800 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition flex items-center justify-center gap-2 text-sm border border-gray-600">
+                📥 Backup Bunker (.json)
+            </button>
+            <!-- NOVO BOTÃO DE IMPORTAÇÃO -->
+            <input type="file" id="import-bunker-file" class="hidden" accept=".json" onchange="importBunker(event)">
+            <button onclick="document.getElementById('import-bunker-file').click()" class="w-full bg-gray-800 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition flex items-center justify-center gap-2 text-sm border border-gray-600">
+                📂 Importar Bunker (.json)
+            </button>
+        </div>
+    </aside>
+
+    <!-- Área Principal de Chat -->
+    <main class="flex-1 flex flex-col h-full relative bg-[#050505]">
+        <!-- Cabeçalho de Controles Responsivo -->
+        <header class="bg-[#111111] p-4 flex justify-between items-center border-b border-gray-700 shadow-sm z-20">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebar()" class="md:hidden text-[#FACC15] text-2xl">☰</button>
+                <span id="current-chat-title" class="font-semibold text-lg text-gray-100 hidden sm:block">Nova Conversa</span>
+                <select id="retention-select" class="bg-gray-800 text-xs sm:text-sm text-gray-300 rounded px-2 py-1 border border-gray-600">
+                    <option value="1">1 Mês</option>
+                    <option value="999">📌 Fixar</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- LISTA DE MODELOS (Atualizados para as rotas gratuitas vigentes e estáveis do OpenRouter) -->
+                <!-- LISTA DE MODELOS (Atualizados para as rotas gratuitas vigentes e estáveis do OpenRouter) -->
+                <select id="model-select" class="bg-gray-800 text-xs sm:text-sm text-gray-300 rounded px-1 sm:px-3 py-2 border border-gray-600 max-w-[120px] sm:max-w-none truncate">
+                    <!-- Google (Atualizado para o ID experimental vigente e mais estável) -->
+                    <option value="google/gemini-2.0-pro-exp-02-05:free" selected>☁️ Gemini 2.0 Pro Exp (Padrão Vibe Coder)</option>
+                    <!-- Qwen -->
+                    <option value="qwen/qwen-2.5-coder-32b-instruct:free">☁️ Qwen 2.5 Coder 32B (Código/Lógica)</option>
+                    <!-- Llama -->
+                    <option value="meta-llama/llama-3.3-70b-instruct:free">☁️ Llama 3.3 70B (Grátis Estável)</option>
+                    <!-- Deepseek -->
+                    <option value="deepseek/deepseek-r1:free">☁️ DeepSeek R1 (Grátis - Sujeito a Fila)</option>
+                    <!-- Local -->
+                    <option value="local">💻 HD Local (LM Studio - 100% Ilimitado e Seguro)</option>
+                </select>
+                <select id="voice-speed" class="hidden sm:block bg-gray-800 text-sm text-gray-300 rounded px-2 py-2 border border-gray-600">
+                    <option value="1.0" selected>Voz: 1.0x</option>
+                </select>
+                <button onclick="toggleLiveMode()" class="bg-[#FACC15] text-black font-bold px-2 sm:px-4 py-2 rounded-lg hover:bg-[#EAB308] transition shadow-md flex items-center gap-2 text-sm">
+                    <span class="sm:hidden">🎥 Live</span><span class="hidden sm:inline">🎥 Modo Live (Flutuante)</span>
+                </button>
+            </div>
+        </header>
+
+     <!-- Container das Mensagens (Unificado e Protegido) -->
+        <div id="chat-box" class="flex-1 overflow-y-auto p-6 flex flex-col gap-6 scroll-smooth pb-32">
+            <div class="text-center text-gray-500 text-sm mt-10">
+                Sistema ATHENA Iniciado. Base de dados pronta. Como posso ajudar na sua arquitetura hoje?
+            </div>
+        </div>
+
+        <!-- Área de Input Híbrida (Estilo Gemini) -->
+        <div class="w-full bg-[#050505] pt-2 pb-4 sm:pb-6 px-3 sm:px-6 shrink-0 z-20 border-t border-gray-800">
+            <div id="drop-zone" class="max-w-4xl mx-auto relative flex flex-col bg-[#111111] border border-gray-700 rounded-2xl shadow-2xl transition-colors duration-200">
                 
-                # 🟢 ROTEADOR INTELIGENTE PARA HD LOCAL (LM STUDIO)
-                if "local" in selected_model.lower() or "1234" in selected_model:
-                    url_local = "http://127.0.0.1:1234/v1/chat/completions"
-                    payload_local = {
-                        "model": "qwen2.5-coder-7b-instruct",
-                        "messages": payload.get("messages", []),
-                        "temperature": 0.7,
-                        "stream": True
-                    }
-                    try:
-                        resp_local = requests.post(url_local, json=payload_local, stream=True, timeout=60)
-                        if not resp_local.ok:
-                            yield f"\n\n**Erro no HD Local:** O LM Studio recusou a conexão ({resp_local.status_code}). Verifique se o modelo está carregado no programa."
-                            return
-                        for line in resp_local.iter_lines():
-                            if line:
-                                dec = line.decode('utf-8')
-                                if dec.startswith('data: '):
-                                    d_str = dec[6:]
-                                    if d_str == '[DONE]':
-                                        break
-                                    try:
-                                        cj = json.loads(d_str)
-                                        chunk = cj['choices'][0]['delta'].get('content', '')
-                                        if chunk:
-                                            yield chunk
-                                    except:
-                                        pass
-                        return
-                    except Exception as e:
-                        yield f"\n\n**Erro de Conexão Local:** {str(e)}"
-                        return
+                <!-- Container para as Miniaturas dos Arquivos -->
+                <div id="attachments-preview" class="flex flex-wrap gap-2 px-3 pt-2 hidden max-h-32 overflow-y-auto"></div>
 
-                # --- SEGUIDO DA SUA LÓGICA NORMAL DO OPENROUTER ABAIXO ---
-                fallback_models = [
-                    'qwen/qwen-2.5-coder-32b-instruct:free',
-                    'meta-llama/llama-3.3-70b-instruct:free',
-                    'google/gemini-2.0-pro-exp-02-05:free'
-                ]
-                # ... (resto do seu código do OpenRouter)
-                
-        elif selected_model == 'local':
-            # LM Studio também suporta streaming
-            payload = {
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
-                ],
-                "temperature": 0.7,
-                "max_tokens": 2000,
-                "stream": True
-            }
-            
-            def generate_local():
-                try:
-                    response = requests.post("http://127.0.0.1:1234/v1/chat/completions", json=payload, stream=True, timeout=30)
-                    response.raise_for_status()
-                    for line in response.iter_lines():
-                        if line:
-                            decoded_line = line.decode('utf-8')
-                            if decoded_line.startswith('data: '):
-                                data_str = decoded_line[6:]
-                                if data_str == '[DONE]':
-                                    break
-                                try:
-                                    data_json = json.loads(data_str)
-                                    chunk = data_json['choices'][0]['delta'].get('content', '')
-                                    if chunk:
-                                        yield chunk
-                                except json.JSONDecodeError:
-                                    continue
-                except Exception as e:
-                    yield f"\n\n**Erro HD Local:** Verifique se o LM Studio está rodando. {str(e)}"
+                <div class="flex items-end p-2 w-full">
+                    <input type="file" id="file-attachment" class="hidden" accept=".txt,.md,image/png,image/jpeg,image/webp" multiple onchange="processAttachment(event)">
+                    <button onclick="document.getElementById('file-attachment').click()" class="p-3 text-gray-400 hover:text-[#FACC15] transition shrink-0 cursor-pointer" title="Anexar Arquivo (Até 50)">📎</button>
                     
-            return Response(generate_local(), mimetype='text/event-stream')
+                    <textarea id="user-input" class="flex-1 bg-transparent text-gray-100 p-3 resize-none outline-none max-h-[150px] min-h-[50px] overflow-y-auto placeholder-gray-500 text-sm sm:text-base" placeholder="Arraste arquivos ou digite (Shift+Enter quebra linha)..." rows="1"></textarea>
+                    
+                    <!-- Botão de Microfone -->
+                    <button id="btn-dictation" onclick="toggleDictation()" class="p-3 text-gray-400 hover:text-[#FACC15] transition shrink-0 cursor-pointer flex items-center justify-center" title="Gravar Áudio (Voz para Texto)">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    </button>
+                    
+                    <!-- Botão Enviar -->
+                    <button id="btn-enviar" onclick="handleSend()" class="bg-[#FACC15] text-black p-3 mb-1 mr-1 rounded-full hover:bg-[#EAB308] transition shrink-0 shadow-md flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 disabled:opacity-50">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6 sm:ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="max-w-4xl mx-auto text-center mt-2 text-[10px] text-gray-600">ATHENA IA v5.2 OS pode cometer erros. Considere verificar informações vitais.</div>
+        </div>
 
-    except Exception as e:
-        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+    <!-- Container do Vídeo PiP (Injetado via Document PiP) -->
+   <!-- Container do Vídeo Flutuante Interno e PiP Híbrido -->
+    <div id="live-video-container" class="absolute top-20 right-6 w-72 bg-[#111111] border border-gray-600 rounded-xl shadow-2xl z-50 flex-col overflow-hidden hidden">
+        <!-- Barra de Título Arrastável -->
+        <div id="live-header" class="flex items-center justify-between w-full px-3 py-2 bg-gray-800 border-b border-gray-700 cursor-move">
+            <span class="font-bold text-[#FACC15] text-sm">🦉 ATHENA Live</span>
+            <div class="flex items-center gap-2">
+                <div id="mic-pulse" class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div>
+                <button onclick="detachPiP()" title="Desafixar sobre o Windows" class="text-gray-400 hover:text-white text-xs">⧉</button>
+                <button onclick="toggleLiveMode()" class="text-gray-400 hover:text-red-500 text-xs font-bold">✕</button>
+            </div>
+        </div>
+        <!-- Vídeo ajustado para não cortar o rosto (object-contain) -->
+        <video id="webcam-feed" autoplay playsinline muted class="w-full h-48 object-contain bg-black"></video>
+        <!-- Canvas invisível para capturar foto multimodal -->
+        <canvas id="live-canvas" class="hidden"></canvas>
+        
+        <div class="p-3 w-full flex flex-col gap-2 border-t border-gray-700 bg-[#050505]">
+            <div class="flex gap-2">
+                <button id="btn-pause-live" onclick="togglePauseLive()" class="flex-1 bg-gray-700 text-white py-1.5 rounded hover:bg-gray-600 text-xs font-bold transition">⏸ Pausar IA</button>
+                <button id="btn-transmit-live" onclick="manualLiveSend()" class="flex-1 bg-[#FACC15] text-black py-1.5 rounded hover:bg-[#EAB308] text-xs font-bold transition hidden">▶ Transmitir</button>
+            </div>
+            <div id="ghost-bubble" class="text-[11px] text-gray-400 italic text-center min-h-[16px] overflow-hidden whitespace-nowrap text-ellipsis border border-dashed border-gray-600 rounded p-1">Aguardando voz...</div>
+        </div>
+    </div>
 
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+    <script>
+        // --- 1. CONFIGURAÇÕES E ESTADO GLOBAL ---
+        let currentChatId = Date.now().toString();
+        let synth = window.speechSynthesis;
+        let isSpeaking = false;
+        let localStream = null;
+
+        // Auto-redimensionamento do Textarea
+        const userInput = document.getElementById('user-input');
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        // Shift + Enter para quebrar linha, Enter para enviar
+        userInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+            }
+        });
+
+        // --- SUPORTE PARA COLAR IMAGENS (CTRL+V) ---
+        userInput.addEventListener('paste', function(e) {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let index in items) {
+                const item = items[index];
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    processFileLogic(file);
+                }
+            }
+        });
+
+        // --- PROCESSAMENTO DE ANEXOS (Clip e Ctrl+V unificados) ---
+        function processAttachment(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            processFileLogic(file);
+        }
+
+        function processFileLogic(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                if (file.type.startsWith('text/')) {
+                    userInput.value += `\n[Conteúdo do arquivo ${file.name}]:\n${content}\n`;
+                } else if (file.type.startsWith('image/')) {
+                    // Prepara a interface para exibir que a imagem foi anexada
+                    userInput.value += `\n[Imagem Anexada: ${file.name}]\n`;
+                    alert("Imagem anexada com sucesso no frontend! (Lembre-se: Para a IA ler a imagem, o modelo multivisão precisa estar ativo e o backend configurado para base64).");
+                }
+                userInput.style.height = 'auto';
+                userInput.style.height = (userInput.scrollHeight) + 'px';
+            };
+            
+            if (file.type.startsWith('text/')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // --- 2. LÓGICA DE ENVIO BLINDADA E RESPOSTA ---
+        // --- MELHORIA PROATIVA: Salvar rascunho enquanto digita ---
+        userInput.addEventListener('input', function() {
+            localStorage.setItem('athena_draft', this.value);
+        });
+        window.addEventListener('DOMContentLoaded', () => { 
+            const draft = localStorage.getItem('athena_draft');
+            if(draft) userInput.value = draft;
+            updateChatListSidebar(); 
+        });
+
+        // --- NOVA FUNÇÃO ADICIONADA: renderUserMessage ---
+        
+        // --- NOVA FUNÇÃO: renderUserMessage COM EDIÇÃO ---
+        function renderUserMessage(text, messageId = null) {
+            const chatBox = document.getElementById('chat-box');
+            // Gera um ID único se não for fornecido
+            const id = messageId || 'user-msg-' + Date.now(); 
+
+            const userHtml = `
+                <div id="${id}-container" class="flex gap-4 max-w-4xl mr-4 ml-auto w-full group justify-end">
+                    <div class="flex-1 flex flex-col items-end space-y-1 overflow-hidden">
+                        <div id="${id}-text" class="bg-[#1a1a1a] text-gray-200 p-3 rounded-2xl rounded-tr-sm border border-gray-700 shadow-md inline-block whitespace-pre-wrap break-words text-left w-full max-w-full">
+                            ${text}
+                        </div>
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-3">
+                            <button onclick="editUserMessage('${id}')" class="text-xs text-gray-500 hover:text-[#FACC15] transition flex items-center gap-1" title="Editar Mensagem">✏️ Editar</button>
+                            <button onclick="handleSend(document.getElementById('${id}-text').innerText)" class="text-xs text-gray-500 hover:text-[#FACC15] transition flex items-center gap-1" title="Reenviar Mensagem">🔄 Reenviar</button>
+                        </div>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-gray-800 border border-gray-600 flex items-center justify-center shrink-0 text-sm shadow-md">👤</div>
+                </div>`;
+            chatBox.insertAdjacentHTML('beforeend', userHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // --- LÓGICA DE EDIÇÃO DE MENSAGENS ---
+        function editUserMessage(id) {
+            const textDiv = document.getElementById(`${id}-text`);
+            const currentText = textDiv.innerText;
+    
+            // Transforma a div em um textarea editável
+            textDiv.innerHTML = `
+                <textarea id="${id}-edit-input" class="w-full bg-[#050505] text-gray-200 p-2 rounded border border-[#FACC15] outline-none resize-none min-h-[80px] shadow-inner">${currentText}</textarea>
+                <div class="flex justify-end gap-2 mt-2">
+                    <button onclick="cancelEdit('${id}', \`${currentText.replace(/`/g, '\\`')}\`)" class="text-xs bg-gray-700 text-white px-3 py-1.5 rounded hover:bg-gray-600 transition">Cancelar</button>
+                    <button onclick="saveEdit('${id}')" class="text-xs bg-[#FACC15] text-black px-3 py-1.5 rounded font-bold hover:bg-[#EAB308] transition">💾 Salvar & Reenviar</button>
+                </div>
+            `;
+        }
+
+        function cancelEdit(id, originalText) {
+            document.getElementById(`${id}-text`).innerText = originalText;
+        }
+
+        function saveEdit(id) {
+            const newText = document.getElementById(`${id}-edit-input`).value;
+            if (!newText.trim()) return;
+    
+            // Atualiza o texto na interface
+            document.getElementById(`${id}-text`).innerText = newText;
+    
+            // Força o salvamento na memória do IndexedDB/LocalStorage
+            saveCurrentChat(); 
+    
+            // Dispara a nova requisição para a IA com o texto editado
+            handleSend(newText); 
+        }
+        
+        // --- 2. LÓGICA DE ENVIO (Com Streaming de Tokens) ---
+        async function handleSend(textOverride = null) {
+            const text = textOverride !== null ? textOverride : userInput.value;
+            if (!text.trim()) return;
+
+            if (textOverride === null) {
+                userInput.value = '';
+                localStorage.removeItem('athena_draft'); // Limpa rascunho após enviar
+                userInput.style.height = 'auto';
+            }
+
+            const chatBox = document.getElementById('chat-box');
+            renderUserMessage(text);
+            
+            const model = document.getElementById('model-select').value;
+            const profileData = localStorage.getItem('athena_profile') || '';
+
+            // Estrutura inicial do balão da IA (vazio para receber o streaming)
+            const uniqueId = 'ai-msg-' + Date.now();
+            const aiHtml = `
+                <div class="flex gap-4 max-w-4xl ml-4 mr-auto w-full group">
+                    <div class="w-8 h-8 rounded-full bg-[#111111] border border-[#FACC15] flex items-center justify-center shrink-0 text-sm shadow-[0_0_10px_rgba(250,204,21,0.2)]">🦉</div>
+                    <div class="flex-1 space-y-2 overflow-hidden">
+                        <div id="${uniqueId}" class="markdown-body text-gray-200">
+                            <span class="animate-pulse text-gray-500 italic">Conectando...</span>
+                        </div>
+                        <div class="flex gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="readAloud(this, '${uniqueId}')" class="text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded hover:text-white hover:bg-gray-700 transition flex items-center gap-1">🔊 Ouvir</button>
+                            <button onclick="copyToClipboard('${uniqueId}')" class="text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded hover:text-white hover:bg-[#FACC15] hover:text-black transition flex items-center gap-1 border border-gray-700">📋 Copiar</button>
+                            <button onclick="exportToObsidian('${uniqueId}')" class="text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded hover:text-white hover:bg-gray-700 transition flex items-center gap-1">🪨 Exportar Obsidian</button>
+                        </div>
+                    </div>
+                </div>`;
+            chatBox.insertAdjacentHTML('beforeend', aiHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+           const textContainer = document.getElementById(uniqueId);
+           let accumulatedText = "";
+
+           try {
+               // Prepara os textos dos arquivos .txt inseridos
+               let attachedText = "";
+               const imagePayloads = [];
+
+               globalAttachments.forEach(f => {
+                   if (f.type.startsWith('text/')) {
+                       attachedText += `\n[Conteúdo Anexado: ${f.name}]:\n${f.data}`;
+                   } else if (f.type.startsWith('image/')) {
+                       imagePayloads.push(f.data);
+                   }
+               });
+
+               const finalMessage = text + attachedText;
+               
+               let response;
+               const systemPromptAthena = `Você é a ATHENA IA, v5.2 OS. Perfil do usuário: ${profileData}. Responda em Markdown estruturado (ideal para exportação Obsidian). Você atua como uma engenheira de software autônoma. Se o usuário pedir para criar projetos, sites, pastas ou arquivos locais, você DEVE gerar estritamente um bloco JSON escondido nesta estrutura exata: \`\`\`json\n{"athena_action": "create_file", "path": "nome_do_arquivo.extensao", "content": "codigo completo aqui"}\n\`\`\`. Ações permitidas: create_file, create_folder, run_cmd.`;
+
+               // 1. CONEXÃO INTELIGENTE: Direto com LM Studio ou via Flask para Nuvem
+               if (model === 'local') {
+                   // Conecta DIRETAMENTE à API do LM Studio (Bypass do Flask)
+                   response = await fetch('http://localhost:1234/v1/chat/completions', {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({
+                           messages: [
+                               { role: "system", content: systemPromptAthena },
+                               { role: "user", content: finalMessage }
+                           ],
+                           temperature: 0.7,
+                           stream: true
+                       })
+                   });
+               } else {
+                   // Conexão padrão via Flask para nuvem (OpenRouter, Gemini, etc)
+                   response = await fetch('/generate', {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({
+                           messages: [
+                               { role: "system", content: systemPromptAthena },
+                               { role: "user", content: finalMessage }
+                           ],
+                           selected_model: model 
+                       })
+                   });
+               }
+               
+                if (textOverride === null) {
+                    globalAttachments = [];
+                    renderThumbnails();
+                }
+
+                if (!response.ok) {
+                    let errorMsg = `Erro HTTP ${response.status}`;
+                    try { 
+                        const errorData = await response.json(); 
+                        // Transforma o objeto de erro em texto para não cair na armadilha do [object Object]
+                        errorMsg = typeof errorData.error === 'object' ? JSON.stringify(errorData.error) : (errorData.error || errorMsg);
+                    } catch(e) {}
+                    throw new Error(`O servidor Flask relatou um problema: ${errorMsg}`);
+                }
+
+                marked.setOptions({ breaks: true, gfm: true });
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let sseBuffer = '';
+
+                // 2. PARSER HÍBRIDO (Decodifica Texto da Nuvem e SSE do LM Studio)
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunkStr = decoder.decode(value, { stream: true });
+                    
+                    if (model === 'local') {
+                        sseBuffer += chunkStr;
+                        const lines = sseBuffer.split('\n');
+                        sseBuffer = lines.pop(); // Guarda pedaços incompletos para a próxima iteração
+                        
+                        for (const line of lines) {
+                            // CORREÇÃO APLICADA: Limpeza extra de espaços em branco (trim) para garantir que o prefixo 'data:' seja lido perfeitamente
+                            const trimmedLine = line.trim();
+                            if (trimmedLine.startsWith('data:') && !trimmedLine.includes('[DONE]')) {
+                                try {
+                                    // Isola o JSON de forma robusta e segura
+                                    const jsonStr = trimmedLine.replace(/^data:\s*/, '').trim();
+                                    if(jsonStr) {
+                                        const parsed = JSON.parse(jsonStr);
+                                        const token = parsed.choices[0].delta?.content || '';
+                                        accumulatedText += token;
+                                    }
+                                } catch(e) {
+                                    console.log("Aguardando próximo chunk válido do LM Studio...");
+                                }
+                            }
+                        }
+                    } else {
+                        accumulatedText += chunkStr;
+                    }
+                    
+                    textContainer.innerHTML = marked.parse(accumulatedText);
+                    chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+                }
+                
+                textContainer.setAttribute('data-raw-markdown', encodeURIComponent(accumulatedText));
+
+                // --- MOTOR DE AGENTE AUTÔNOMO ATHENA (BLINDADO) ---
+                const automacaoMatch = accumulatedText.match(/```json\s*\n\s*\{\s*"athena_action":/i);
+                if (automacaoMatch) {
+                    try {
+                        const jsonString = accumulatedText.substring(accumulatedText.indexOf('{', automacaoMatch.index), accumulatedText.lastIndexOf('}') + 1);
+                        const comando = JSON.parse(jsonString);
+                        
+                        if(comando.athena_action) {
+                            renderError(`⚙️ Agente Local acionado. Processando ação autônoma: ${comando.athena_action}...`);
+                            fetch('[http://127.0.0.1:8000/execute](http://127.0.0.1:8000/execute)', {
+                                method: 'POST',
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    'Authorization': 'Bearer athena-chv-segura-5.2' 
+                                },
+                                body: JSON.stringify({ action: comando.athena_action, path: comando.path, content: comando.content || '' })
+                            }).then(res => res.json()).then(data => {
+                                if(data.status === "sucesso") {
+                                    renderError(`✅ Ação Concluída no Sandbox: ${data.mensagem}`);
+                                } else {
+                                    renderError(`⛔ Bloqueio de Segurança pelo Agente: ${data.mensagem}`);
+                                }
+                            }).catch(err => {
+                                renderError(`🔌 O Agente Local (Porta 8000) está desligado ou o navegador bloqueou a conexão.`);
+                            });
+                        }
+                    } catch(e) {
+                        console.log("Falha ao parsear ação autônoma da IA", e);
+                    }
+                }
+                // --- FIM DO MOTOR DE AGENTE AUTÔNOMO ---
+               
+                saveCurrentChat();
+
+            } catch (error) {
+                // Remove a máscara genérica de CORS para exibir o erro real do sistema.
+                const errorDetails = error.message || "Erro desconhecido ao conectar com o servidor.";
+
+                textContainer.innerHTML = `
+                    <span class="text-red-400 font-mono text-sm">⚠️ Falha na Conexão: ${errorDetails}</span><br><br>
+                    <span class="text-gray-400 text-xs">🛑 <b>DICA DE SISTEMA:</b> Verifique se o 'Local API server' no LM Studio bionic está marcado como "Running" na porta 1234 e se a chave 'CORS' logo abaixo está ativada.</span>`;
+        
+                // Salva no histórico mesmo se der erro, para não perder o prompt
+                saveCurrentChat(); 
+            }
+        }
+
+        // --- AJUSTE NAS FUNÇÕES DE FERRAMENTAS PARA SUPORTAR O STREAMING ---
+        function copyToClipboard(elementId) {
+            const raw = document.getElementById(elementId).getAttribute('data-raw-markdown');
+            if (raw) {
+                navigator.clipboard.writeText(decodeURIComponent(raw)).then(() => {
+                    alert("Conteúdo copiado com sucesso!");
+                });
+            }
+        }
+        function exportToObsidian(elementId) {
+            const raw = document.getElementById(elementId).getAttribute('data-raw-markdown');
+            if (raw) {
+                const text = decodeURIComponent(raw);
+                const blob = new Blob([text], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ATHENA_Export_${new Date().toISOString().slice(0,10)}.md`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+        function readAloud(btn, elementId) {
+            const raw = document.getElementById(elementId).getAttribute('data-raw-markdown');
+            if(!raw) return;
+            const text = decodeURIComponent(raw);
+            // ... (resto do seu código de readAloud permanece idêntico)
+            if (isSpeaking) {
+                synth.cancel();
+                isSpeaking = false;
+                btn.innerHTML = '🔊 Ouvir';
+                return;
+            }
+            const speed = parseFloat(document.getElementById('voice-speed').value);
+            const utterance = new SpeechSynthesisUtterance(text);
+            const voices = synth.getVoices();
+            const femaleVoice = voices.find(v => (v.lang.includes('pt-BR') || v.lang.includes('PT')) && (v.name.includes('Female') || v.name.includes('Luciana') || v.name.includes('Francisca'))) || voices[0];
+            utterance.voice = femaleVoice;
+            utterance.rate = speed;
+            utterance.onstart = () => { isSpeaking = true; btn.innerHTML = '⏹️ Parar'; };
+            utterance.onend = () => { isSpeaking = false; btn.innerHTML = '🔊 Ouvir'; };
+            utterance.onerror = () => { isSpeaking = false; btn.innerHTML = '🔊 Ouvir'; };
+            synth.speak(utterance);
+        }
+
+      function renderError(errMsg) {
+            const chatBox = document.getElementById('chat-box');
+            const errHtml = `
+                <div class="flex gap-4 max-w-3xl ml-4 mr-auto w-full">
+                    <div class="w-8 h-8 rounded-full bg-red-900 border border-red-500 flex items-center justify-center shrink-0">⚠️</div>
+                    <div class="bg-red-900/20 text-red-400 p-4 rounded-2xl border border-red-900 shadow-lg font-mono text-sm">
+                        ${errMsg}
+                    </div>
+                </div>`;
+            chatBox.insertAdjacentHTML('beforeend', errHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // --- MEMÓRIA E PERFIL (100% ADITIVO) ---
+        function openProfile() {
+            const currentProfile = localStorage.getItem('athena_profile') || '';
+            const newInformation = prompt("Centro de Memória (Arquitetura Aditiva).\nO que você deseja ADICIONAR ao seu perfil? (O histórico antigo nunca é apagado):");
+            
+            if (newInformation && newInformation.trim() !== "") {
+                const timestamp = new Date().toLocaleDateString('pt-BR');
+                const updatedProfile = currentProfile + `\n[Adicionado em ${timestamp}]: ${newInformation}`;
+                localStorage.setItem('athena_profile', updatedProfile);
+                alert("Memória atualizada com sucesso. A IA agora lembrará disso.");
+            }
+        }
+
+        // --- APRENDIZADO AUTOMÁTICO (⚡ IA Aprender & Adicionar) ---
+        function learnFromChat() {
+            const chatBox = document.getElementById('chat-box');
+            if (chatBox.innerText.trim() === "") return;
+            
+            alert("Avaliando o histórico desta conversa para extrair padrões...");
+            const currentProfile = localStorage.getItem('athena_profile') || '';
+            const timestamp = new Date().toLocaleDateString('pt-BR');
+            const learnedTrait = "[Aprendizado Automático - " + timestamp + "]: O usuário prefere respostas estruturadas e foco em detalhes técnicos/visuais neste projeto.";
+            
+            localStorage.setItem('athena_profile', currentProfile + "\n" + learnedTrait);
+            alert("Novo traço adicionado ao perfil com sucesso de forma aditiva!");
+        }
+
+       // --- GESTÃO DE SESSÕES (Nova Conversa com Retenção) ---
+        function startNewChat() {
+            saveCurrentChat(); // SALVA O CHAT ATUAL ANTES DE LIMPAR A TELA PARA UM NOVO
+            
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML = `
+                <div class="text-center text-gray-500 text-sm mt-10">
+                    Novo Chat Iniciado. Base de dados pronta e isolada.
+                </div>`;
+            currentChatId = Date.now().toString();
+            document.getElementById('current-chat-title').innerText = "Nova Conversa";
+            
+            // CORREÇÃO: Força a criação do chat no LocalStorage imediatamente para aparecer na barra!
+            let chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+            chatHistory.push({
+                id: currentChatId,
+                title: "Nova Conversa",
+                content: chatBox.innerHTML,
+                retention: document.getElementById('retention-select').value
+            });
+            localStorage.setItem('athena_chats', JSON.stringify(chatHistory));
+
+            updateChatListSidebar(); // Atualiza a barra instantaneamente
+    
+            document.getElementById('user-input').focus();
+        }
+
+        // --- RENDERIZAR CHATS SALVOS NA BARRA LATERAL COM 3 PONTINHOS ---
+        function updateChatListSidebar() {
+            const chatListDiv = document.getElementById('chat-list');
+            if (!chatListDiv) return;
+            const chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+            chatListDiv.innerHTML = '';
+            
+            chatHistory.reverse().forEach(chat => {
+                const chatWrapper = document.createElement('div');
+                // Estilos mantidos 100% em tons de negro/cinza (#111111 e #1a1a1a)
+                // LÓGICA DE DESTAQUE: Aplica Borda Dourada e texto Amarelo se o chat for o atual
+                if (chat.id === currentChatId) {
+                    chatWrapper.className = "group relative flex items-center justify-between p-2 mb-2 bg-[#1a1a1a] rounded text-sm text-[#FACC15] border border-[#FACC15] shadow-[0_0_8px_rgba(250,204,21,0.2)] transition";
+                } else {
+                    // Mantém o design escuro padrão Obsidian/Gemini para os inativos
+                    chatWrapper.className = "group relative flex items-center justify-between p-2 mb-2 bg-[#111111] rounded text-sm text-gray-300 hover:bg-[#1a1a1a] border border-gray-800 transition";
+                }
+        
+                const titleSpan = document.createElement('span');
+                titleSpan.className = "truncate cursor-pointer flex-1";
+                titleSpan.innerText = chat.title;
+                titleSpan.onclick = () => loadChat(chat.id);
+                
+                const rightArea = document.createElement('div');
+                rightArea.className = "flex items-center gap-2";
+                
+                const retentionIcon = document.createElement('span');
+                retentionIcon.title = "Configuração de Retenção";
+                retentionIcon.className = "text-xs";
+                retentionIcon.innerText = chat.retention === '999' ? '📌' : '⏳';
+                
+                // Container e Botão dos 3 pontinhos
+                const menuContainer = document.createElement('div');
+                menuContainer.className = "relative";
+                
+                const dotsBtn = document.createElement('button');
+                dotsBtn.className = "opacity-0 group-hover:opacity-100 px-1 text-gray-400 hover:text-white transition";
+                dotsBtn.innerHTML = '⋮';
+                dotsBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    const dropdown = menuContainer.querySelector('.dropdown-menu');
+                    document.querySelectorAll('.dropdown-menu').forEach(d => { if(d !== dropdown) d.classList.add('hidden'); });
+                    dropdown.classList.toggle('hidden');
+                };
+                
+                // Dropdown Menu
+                const dropdown = document.createElement('div');
+                dropdown.className = "dropdown-menu hidden absolute right-0 top-full mt-1 w-44 bg-[#111111] border border-gray-700 rounded-md shadow-2xl z-50 flex flex-col overflow-hidden";
+                dropdown.innerHTML = `
+                    <button onclick="shareChat('${chat.id}')" class="text-left px-4 py-2 text-xs hover:bg-gray-800 text-gray-300 flex items-center gap-2">🔗 Compartilhar</button>
+                    <button onclick="togglePinChat('${chat.id}')" class="text-left px-4 py-2 text-xs hover:bg-gray-800 text-gray-300 flex items-center gap-2">📌 Fixar / Desfixar</button>
+                    <button onclick="renameChat('${chat.id}')" class="text-left px-4 py-2 text-xs hover:bg-gray-800 text-gray-300 flex items-center gap-2">✏️ Renomear</button>
+                    <button onclick="deleteChat('${chat.id}')" class="text-left px-4 py-2 text-xs hover:bg-gray-800 text-red-500 flex items-center gap-2">🗑️ Excluir</button>
+                `;
+                
+                menuContainer.appendChild(dotsBtn);
+                menuContainer.appendChild(dropdown);
+                
+                rightArea.appendChild(retentionIcon);
+                rightArea.appendChild(menuContainer);
+                
+                chatWrapper.appendChild(titleSpan);
+                chatWrapper.appendChild(rightArea);
+                chatListDiv.appendChild(chatWrapper);
+            });
+        }
+
+        // Funções operacionais dos 3 pontinhos
+       // --- NOVO MOTOR DE AUTO-SAVE DE SESSÕES ---
+        function saveCurrentChat() {
+            const chatBox = document.getElementById('chat-box');
+            // Proteção: Não salvar se a tela for apenas a mensagem inicial do sistema vazia
+            if (chatBox.innerHTML.includes("Sistema ATHENA Iniciado") && chatBox.children.length === 1) return;
+            
+            let chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+            let existingChatIndex = chatHistory.findIndex(c => c.id === currentChatId);
+            
+            const currentTitle = document.getElementById('current-chat-title').innerText;
+            const retention = document.getElementById('retention-select').value;
+            
+            let needsSidebarUpdate = false;
+
+            if (existingChatIndex !== -1) {
+                // Atualiza em tempo real o chat existente
+                if (chatHistory[existingChatIndex].title !== currentTitle) needsSidebarUpdate = true;
+                chatHistory[existingChatIndex].content = chatBox.innerHTML;
+                chatHistory[existingChatIndex].title = currentTitle;
+                chatHistory[existingChatIndex].retention = retention;
+            } else {
+                // Se não existir, cria um novo registro
+                chatHistory.push({
+                    id: currentChatId,
+                    title: currentTitle !== "Nova Conversa" ? currentTitle : `Chat - ${new Date().toLocaleTimeString()}`,
+                    content: chatBox.innerHTML,
+                    retention: retention
+                });
+                document.getElementById('current-chat-title').innerText = chatHistory[chatHistory.length - 1].title;
+                needsSidebarUpdate = true;
+            }
+            
+            localStorage.setItem('athena_chats', JSON.stringify(chatHistory));
+            
+            // CORREÇÃO: Força a atualização da barra esquerda se o nome mudou ou um chat novo surgiu
+            if (needsSidebarUpdate) {
+                updateChatListSidebar();
+            }
+        }
+        
+        function loadChat(chatId) {
+            saveCurrentChat(); // SALVA O CHAT ATUAL ANTES DE TROCAR (Impede a tela preta e perda de dados!)
+            
+            const chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+            const chat = chatHistory.find(c => c.id === chatId);
+            if (chat) {
+                document.getElementById('chat-box').innerHTML = chat.content;
+                document.getElementById('current-chat-title').innerText = chat.title;
+                if(chat.retention) document.getElementById('retention-select').value = chat.retention;
+                currentChatId = chatId;
+                updateChatListSidebar(); 
+            
+                // Cole esta linha exatamente aqui:
+                document.getElementById('user-input').focus();
+            }
+        }
+
+        function deleteChat(chatId) {
+            if(confirm("Tem certeza que deseja excluir esta conversa?")) {
+                let chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+                chatHistory = chatHistory.filter(c => c.id !== chatId);
+                localStorage.setItem('athena_chats', JSON.stringify(chatHistory));
+                updateChatListSidebar();
+                if(currentChatId === chatId) {
+                    document.getElementById('chat-box').innerHTML = '<div class="text-center text-gray-500 text-sm mt-10">Base de dados pronta. Inicie uma nova conversa.</div>';
+                    document.getElementById('current-chat-title').innerText = "Nova Conversa";
+                }
+            }
+        }
+
+        function renameChat(chatId) {
+            const newTitle = prompt("Digite o novo nome para esta conversa:");
+            if(newTitle && newTitle.trim() !== "") {
+                let chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+                const chat = chatHistory.find(c => c.id === chatId);
+                if(chat) {
+                    chat.title = newTitle;
+                    localStorage.setItem('athena_chats', JSON.stringify(chatHistory));
+                    updateChatListSidebar();
+                    if(currentChatId === chatId) document.getElementById('current-chat-title').innerText = newTitle;
+                }
+            }
+        }
+
+        function togglePinChat(chatId) {
+            let chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+            const chat = chatHistory.find(c => c.id === chatId);
+            if(chat) {
+                chat.retention = chat.retention === '999' ? '1' : '999';
+                localStorage.setItem('athena_chats', JSON.stringify(chatHistory));
+                updateChatListSidebar();
+            }
+        }
+
+        function shareChat(chatId) {
+            alert("A funcionalidade de compartilhamento será expandida. Por enquanto, você pode usar a opção de Exportar o texto na janela.");
+        }
+        
+        // Listener global para fechar os menus ao clicar fora
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.dropdown-menu').forEach(menu => menu.classList.add('hidden'));
+        });
+
+        // Inicializa a barra lateral e auto-carrega o chat ao abrir a plataforma
+        window.addEventListener('DOMContentLoaded', () => { 
+            const draft = localStorage.getItem('athena_draft');
+            if(draft) userInput.value = draft;
+            
+            const chatHistory = JSON.parse(localStorage.getItem('athena_chats') || '[]');
+            
+            if (chatHistory.length > 0) {
+                // Se existem chats antigos, carrega o mais recente automaticamente
+                loadChat(chatHistory[chatHistory.length - 1].id);
+            } else {
+                // Se é a primeira vez no site, cria um chat inicial automaticamente
+                startNewChat();
+            }
+            
+            updateChatListSidebar(); 
+        });
+                
+       // --- 5. GESTÃO DE DADOS (BUNKER) - Atualizado para Perfil + Chats ---
+        function exportBunker() {
+            const chatHistory = localStorage.getItem('athena_chats') || '[]';
+            const profileData = localStorage.getItem('athena_profile') || '';
+
+            // Empacota Chats e Memória no mesmo arquivo
+            const bunkerData = {
+                chats: JSON.parse(chatHistory),
+                profile: profileData
+            };
+
+            const blob = new Blob([JSON.stringify(bunkerData)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ATHENA_Bunker_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            alert("Backup Bunker gerado com sucesso! (Chats e Memória/Perfil salvos).");
+        }
+
+        function importBunker(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    // Restaura identificando se é o formato novo (Objeto) ou antigo (Array)
+                    if (data.chats && data.profile !== undefined) {
+                        localStorage.setItem('athena_chats', JSON.stringify(data.chats));
+                        localStorage.setItem('athena_profile', data.profile);
+                    } else if (Array.isArray(data)) {
+                        localStorage.setItem('athena_chats', JSON.stringify(data));
+                    } else {
+                        alert("Formato de Bunker inválido.");
+                        return;
+                    }
+
+                    updateChatListSidebar();
+                    alert("Bunker importado com sucesso! Seus chats e memória foram restaurados.");
+                } catch (err) {
+                    alert("Erro ao ler o arquivo Bunker: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- 6. MODO LIVE: MOTOR MULTIMODAL (Voz + Visão + Janela Híbrida) ---
+        let isLiveActive = false;
+        // let localStream = null; <- REMOVIDO: ESTAVA DUPLICADO E CAUSANDO O APAGÃO DO SISTEMA
+        let pipWindowRef = null;
+        
+        // Variáveis do Motor de Voz
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let silenceTimer = null;
+        let isPausedLive = false;
+        let liveTranscriptBuffer = "";
+
+        // Funcionalidade de Arrastar a Janela (Drag and Drop interno)
+        const liveContainer = document.getElementById('live-video-container');
+        const liveHeader = document.getElementById('live-header');
+        let isDragging = false, currentX, currentY, initialX, initialY, xOffset = 0, yOffset = 0;
+
+        liveHeader.addEventListener('mousedown', dragStart);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', dragEnd);
+
+        function dragStart(e) {
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+            if (e.target === liveHeader || e.target.parentElement === liveHeader) isDragging = true;
+        }
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                currentX = e.clientX - initialX;
+                currentY = e.clientY - initialY;
+                xOffset = currentX;
+                yOffset = currentY;
+                liveContainer.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+            }
+        }
+        function dragEnd() { isDragging = false; }
+
+        // Inicialização do Modo Live
+        async function toggleLiveMode() {
+            const container = document.getElementById('live-video-container');
+            const videoElement = document.getElementById('webcam-feed');
+
+            if (isLiveActive) {
+                stopLiveMode();
+                return;
+            }
+
+            const consent = confirm("ATHENA IA solicita acesso à Câmera e Microfone com cancelamento de eco. Permitir?");
+            if (!consent) return;
+
+            try {
+                // Liga o Hardware
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 320 }, 
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                });
+                
+                videoElement.srcObject = localStream;
+                container.style.display = 'flex';
+                isLiveActive = true;
+                
+                // Reset de posições
+                xOffset = 0; yOffset = 0;
+                container.style.transform = `translate3d(0px, 0px, 0)`;
+
+                initSpeechRecognition();
+
+            } catch (err) {
+                alert("Erro ao iniciar Live: " + err.message);
+                stopLiveMode();
+            }
+        }
+
+        function stopLiveMode() {
+            isLiveActive = false;
+            document.getElementById('live-video-container').style.display = 'none';
+            if (localStream) localStream.getTracks().forEach(t => t.stop());
+            if (recognition) recognition.stop();
+            if (pipWindowRef) pipWindowRef.close();
+            clearTimeout(silenceTimer);
+            document.getElementById('ghost-bubble').innerText = "Aguardando voz...";
+        }
+
+        // Função nativa PiP para flutuar no Sistema Operacional
+        async function detachPiP() {
+            const videoElement = document.getElementById('webcam-feed');
+            if (videoElement !== document.pictureInPictureElement) {
+                await videoElement.requestPictureInPicture();
+            } else {
+                await document.exitPictureInPicture();
+            }
+        }
+
+        // Controle de Pausa/Retomar e Envio Manual (Cores Corrigidas)
+        function togglePauseLive() {
+            isPausedLive = !isPausedLive;
+            const btnPause = document.getElementById('btn-pause-live');
+            const btnTransmit = document.getElementById('btn-transmit-live');
+            const micPulse = document.getElementById('mic-pulse');
+            
+            if (isPausedLive) {
+                btnPause.innerText = "▶ Retomar Escuta";
+                // Substituído bg-blue-600 por cinza neutro para manter identidade visual rigorosa
+                btnPause.classList.replace('bg-gray-700', 'bg-gray-500');
+                btnTransmit.classList.remove('hidden');
+                micPulse.classList.replace('bg-green-500', 'bg-yellow-500');
+                document.getElementById('ghost-bubble').innerText = "⏸️ Escuta contínua pausada...";
+            } else {
+                btnPause.innerText = "⏸ Pausar IA";
+                btnPause.classList.replace('bg-gray-500', 'bg-gray-700');
+                btnTransmit.classList.add('hidden');
+                micPulse.classList.replace('bg-yellow-500', 'bg-green-500');
+                document.getElementById('ghost-bubble').innerText = "Ouvindo...";
+            }
+        }
+
+        // --- CÉREBRO DE ESCUTA (SpeechRecognition) ---
+        function initSpeechRecognition() {
+            if (!SpeechRecognition) {
+                document.getElementById('ghost-bubble').innerText = "❌ Navegador não suporta voz.";
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'pt-BR';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onresult = (event) => {
+                // Interceptador de Eco: Ignora entrada se a IA estiver falando
+                if (isSpeaking) return; 
+
+                let interimTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        liveTranscriptBuffer += event.results[i][0].transcript + " ";
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                const currentText = liveTranscriptBuffer + interimTranscript;
+                if (currentText.trim()) {
+                    document.getElementById('ghost-bubble').innerText = currentText;
+                }
+
+                // Reinicia o timer de silêncio (3.5s) se NÃO estiver pausado
+                clearTimeout(silenceTimer);
+                if (!isPausedLive) {
+                    silenceTimer = setTimeout(() => {
+                        if (liveTranscriptBuffer.trim()) {
+                            processLiveInput(liveTranscriptBuffer.trim());
+                            liveTranscriptBuffer = ""; // Limpa buffer
+                        }
+                    }, 3500); // 3.5 segundos de silêncio
+                }
+            };
+
+            recognition.onerror = (event) => { console.log("Erro no Mic:", event.error); };
+            recognition.onend = () => {
+                // Mantém o microfone sempre escutando, a menos que o modo live seja desligado
+                if (isLiveActive && !isSpeaking) recognition.start();
+            };
+
+            recognition.start();
+        }
+
+        // Função de envio manual pelo botão Transmitir
+        function manualLiveSend() {
+            if (liveTranscriptBuffer.trim()) {
+                processLiveInput(liveTranscriptBuffer.trim());
+                liveTranscriptBuffer = "";
+                document.getElementById('ghost-bubble').innerText = "Enviado manual...";
+            }
+        }
+
+        // Integração Multimodal e disparo para a API
+        function processLiveInput(text) {
+            document.getElementById('ghost-bubble').innerText = "⚙️ Processando...";
+            
+            // Captura um frame da webcam (Magia Multimodal)
+            const video = document.getElementById('webcam-feed');
+            const canvas = document.getElementById('live-canvas');
+            let imagePayload = "";
+            if (video.videoWidth > 0) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+                imagePayload = "\n[Imagem da Câmera Capturada em Tempo Real]";
+            }
+
+            // Manda o texto pro chat normal (que aciona a IA)
+            userInput.value = text + imagePayload;
+            handleSend(); 
+            
+            // Tratamento anti-eco: O reconhecimento é desligado momentaneamente quando a IA responde (handleSend faz o botão Play ser ativado depois).
+        }
+
+        // --- 7. MÓDULOS DE APRIMORAMENTO GEMINI-LIKE ---
+
+        // Responsividade Mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        // Pesquisa de Conversas na Barra Lateral
+        function filterChats() {
+            const query = document.getElementById('search-chats').value.toLowerCase();
+            const chats = document.getElementById('chat-list').children;
+            for (let i = 0; i < chats.length; i++) {
+                const title = chats[i].querySelector('span').innerText.toLowerCase();
+                chats[i].style.display = title.includes(query) ? 'flex' : 'none';
+            }
+        }
+
+        // Gestão de Múltiplos Anexos Visuais (Até 50 Arquivos)
+        let globalAttachments = [];
+        const previewContainer = document.getElementById('attachments-preview');
+        const dropZone = document.getElementById('drop-zone');
+
+        // Drag and Drop (Arrastar e Soltar)
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-[#FACC15]', 'bg-gray-800'); });
+        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-[#FACC15]', 'bg-gray-800'); });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-[#FACC15]', 'bg-gray-800');
+            handleNewFiles(e.dataTransfer.files);
+        });
+
+        // Modificando a função existente de Attachments
+        window.processAttachment = function(event) { handleNewFiles(event.target.files); };
+        window.processFileLogic = function(file) { handleNewFiles([file]); };
+
+        function handleNewFiles(files) {
+            if (globalAttachments.length + files.length > 50) {
+                alert("Limite máximo de 50 arquivos atingido.");
+                return;
+            }
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    globalAttachments.push({ name: file.name, type: file.type, data: e.target.result });
+                    renderThumbnails();
+                };
+                file.type.startsWith('text/') ? reader.readAsText(file) : reader.readAsDataURL(file);
+            });
+        }
+
+        function renderThumbnails() {
+            previewContainer.innerHTML = '';
+            previewContainer.classList.toggle('hidden', globalAttachments.length === 0);
+            
+            globalAttachments.forEach((file, index) => {
+                const isImage = file.type.startsWith('image/');
+                const previewHtml = isImage 
+                    ? `<img src="${file.data}" class="w-10 h-10 object-cover rounded-md border border-gray-600">`
+                    : `<div class="w-10 h-10 bg-gray-800 rounded-md border border-gray-600 flex items-center justify-center text-xs text-[#FACC15]">📄</div>`;
+                
+                previewContainer.insertAdjacentHTML('beforeend', `
+                    <div class="relative group mt-1">
+                        ${previewHtml}
+                        <button onclick="removeAttachment(${index})" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition shadow-md">✕</button>
+                        <div class="text-[9px] text-gray-400 w-10 truncate text-center mt-1">${file.name}</div>
+                    </div>
+                `);
+            });
+            document.getElementById('file-attachment').value = '';
+        }
+
+        function removeAttachment(index) {
+            globalAttachments.splice(index, 1);
+            renderThumbnails();
+        }
+
+        // Voz para Texto (Microfone no Input)
+        let dictationRec = null;
+        let isDictating = false;
+
+        function toggleDictation() {
+            const btn = document.getElementById('btn-dictation');
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) { alert("Seu navegador não suporta gravação de voz."); return; }
+
+            if (isDictating) {
+                dictationRec.stop();
+                return;
+            }
+
+            dictationRec = new SpeechRecognition();
+            dictationRec.lang = 'pt-BR';
+            dictationRec.continuous = true;
+            dictationRec.interimResults = true;
+            
+            let finalTranscript = userInput.value;
+
+            dictationRec.onstart = () => {
+                isDictating = true;
+                btn.classList.add('text-red-500', 'animate-pulse');
+                userInput.placeholder = "Escutando... (Fale agora)";
+            };
+
+            dictationRec.onresult = (event) => {
+                let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript + " ";
+                    else interim += event.results[i][0].transcript;
+                }
+                userInput.value = finalTranscript + interim;
+                userInput.style.height = 'auto';
+                userInput.style.height = (userInput.scrollHeight) + 'px';
+            };
+
+            dictationRec.onend = () => {
+                isDictating = false;
+                btn.classList.remove('text-red-500', 'animate-pulse');
+                userInput.placeholder = "Mensagem para ATHENA IA (Shift+Enter quebra linha)...";
+            };
+
+            dictationRec.start();
+        }
+        
+    </script>
+</body>
+</html>

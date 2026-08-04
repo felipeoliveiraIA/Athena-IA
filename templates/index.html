@@ -354,39 +354,22 @@
                let response;
                const systemPromptAthena = `Você é a ATHENA IA, v5.2 OS. Perfil do usuário: ${profileData}. Responda em Markdown estruturado (ideal para exportação Obsidian). Você atua como uma engenheira de software autônoma. Se o usuário pedir para criar projetos, sites, pastas ou arquivos locais, você DEVE gerar estritamente um bloco JSON escondido nesta estrutura exata: \`\`\`json\n{"athena_action": "create_file", "path": "nome_do_arquivo.extensao", "content": "codigo completo aqui"}\n\`\`\`. Ações permitidas: create_file, create_folder, run_cmd.`;
 
-               // 1. MOTOR HÍBRIDO RESTAURADO: Roteamento Inteligente (Nuvem vs HD Local)
+               // 1. DESVIO DE ARQUITETURA: Conexão Direta do Navegador para o LM Studio (Bypass Nuvem)
                if (model === 'local') {
-                   // Conexão Direta: Frontend -> LM Studio. 
-                   // Uso de 'localhost' (mais tolerado por navegadores em exceções de Mixed Content)
-                   response = await fetch('http://localhost:1234/v1/chat/completions', {
+                   // CORREÇÃO: Enviando para a rota do Flask para evitar bloqueio de CORS do navegador
+                   response = await fetch('/generate', {
                        method: 'POST',
                        headers: { 'Content-Type': 'application/json' },
                        body: JSON.stringify({
-                           model: "local-model",
                            messages: [
                                { role: "system", content: systemPromptAthena },
                                { role: "user", content: finalMessage }
                            ],
-                           temperature: 0.7,
-                           max_tokens: 2000,
-                           stream: true
+                           selected_model: "local"
                        })
-                   });
-               } else {
-                   // Conexão Nuvem: Frontend -> Backend Flask (Render) -> OpenRouter
-                   // Este bloco garante que os modelos Qwen, Llama e Gemini voltem a funcionar.
-                   response = await fetch('/api/chat', {
-                       method: 'POST',
-                       headers: { 'Content-Type': 'application/json' },
-                       body: JSON.stringify({
-                           message: finalMessage,
-                           images: imagePayloads,
-                           model: model,
-                           system_prompt: systemPromptAthena
-                       })
-                   });
+                   });           
                }
-
+               
                 if (textOverride === null) {
                     globalAttachments = [];
                     renderThumbnails();

@@ -3,7 +3,14 @@ import requests
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 
-app = Flask(__name__)
+# --- INÍCIO DA SOLUÇÃO DEFINITIVA (Caminhos Absolutos) ---
+# Calcula o caminho real do arquivo atual para não depender do terminal
+diretorio_base = os.path.dirname(os.path.abspath(__file__))
+# Força o Flask a olhar estritamente para a pasta 'templates' dentro deste diretório
+pasta_templates = os.path.join(diretorio_base, 'templates')
+
+app = Flask(__name__, template_folder=pasta_templates)
+# --- FIM DA SOLUÇÃO DEFINITIVA ---
 CORS(app)
 
 # Busca a chave de forma segura nas variáveis de ambiente do Render
@@ -68,7 +75,7 @@ def chat():
                 if "local" in selected_model.lower() or "1234" in selected_model:
                     url_local = "http://127.0.0.1:1234/v1/chat/completions"
                     payload_local = {
-                        "model": "local-model", # Nome genérico aceito pelo LM Studio
+                        "model": "qwen2.5-coder-7b-instruct",
                         "messages": payload.get("messages", []),
                         "temperature": 0.7,
                         "stream": True

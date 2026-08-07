@@ -304,8 +304,8 @@
 
             if (textOverride === null) {
                 userInput.value = '';
-                localStorage.removeItem('athena_draft'); // Limpa rascunho após enviar
-                userInput.style.height = 'auto';
+                localStorage.removeItem('athena_draft'); 
+                userInput.style.height = 'auto'; 
             }
 
             const chatBox = document.getElementById('chat-box');
@@ -314,7 +314,6 @@
             const model = document.getElementById('model-select').value;
             const profileData = localStorage.getItem('athena_profile') || '';
 
-            // Estrutura inicial do balão da IA (vazio para receber o streaming)
             const uniqueId = 'ai-msg-' + Date.now();
             const aiHtml = `
                 <div class="flex gap-4 max-w-4xl ml-4 mr-auto w-full group">
@@ -333,53 +332,36 @@
             chatBox.insertAdjacentHTML('beforeend', aiHtml);
             chatBox.scrollTop = chatBox.scrollHeight;
 
-           const textContainer = document.getElementById(uniqueId);
-           let accumulatedText = "";
+            const textContainer = document.getElementById(uniqueId);
+            let accumulatedText = "";
 
-           try {
-               // Prepara os textos dos arquivos .txt inseridos
-               let attachedText = "";
-               const imagePayloads = [];
+            try {
+                let attachedText = "";
+                const imagePayloads = [];
 
-               globalAttachments.forEach(f => {
-                   if (f.type.startsWith('text/')) {
-                       attachedText += `\n[Conteúdo Anexado: ${f.name}]:\n${f.data}`;
-                   } else if (f.type.startsWith('image/')) {
-                       imagePayloads.push(f.data);
-                   }
-               });
+                globalAttachments.forEach(f => {
+                    if (f.type.startsWith('text/')) {
+                        attachedText += `\n[Conteúdo Anexado: ${f.name}]:\n${f.data}`;
+                    } else if (f.type.startsWith('image/')) {
+                        imagePayloads.push(f.data);
+                    }
+                });
 
-               const finalMessage = text + attachedText;
-               
-               let response;
-               const systemPromptAthena = `Você é a ATHENA IA, v5.2 OS. Perfil do usuário: ${profileData}. Responda em Markdown estruturado (ideal para exportação Obsidian). Você atua como uma engenheira de software autônoma. Se o usuário pedir para criar projetos, sites, pastas ou arquivos locais, você DEVE gerar estritamente um bloco JSON escondido nesta estrutura exata: \`\`\`json\n{"athena_action": "create_file", "path": "nome_do_arquivo.extensao", "content": "codigo completo aqui"}\n\`\`\`. Ações permitidas: create_file, create_folder, run_cmd.`;
+                const finalMessage = text + attachedText;
+                
+                const systemPromptAthena = `Você é a ATHENA IA, v5.2 OS. Perfil do usuário: ${profileData}. Responda em Markdown estruturado (ideal para exportação Obsidian). Você atua como uma engenheira de software autônoma. Se o usuário pedir para criar projetos, sites, pastas ou arquivos locais, você DEVE gerar estritamente um bloco JSON escondido nesta estrutura exata: \`\`\`json\n{"athena_action": "create_file", "path": "nome_do_arquivo.extensao", "content": "codigo completo aqui"}\n\`\`\`. Ações permitidas: create_file, create_folder, run_cmd.`;
 
-               // 1. CONEXÃO UNIFICADA E BLINDADA: Tudo passa pelo cérebro do Flask (/api/chat)
-               // Isso resolve o CORS do LM Studio e corrige a comunicação com a nuvem.
-               response = await fetch('/api/chat', {
-                   method: 'POST',
-                   headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify({
-                       message: finalMessage,
-                       images: imagePayloads,
-                       model: model,
-                       system_prompt: systemPromptAthena
-                   })
-               });
-                   // Conexão padrão via Flask para nuvem (OpenRouter, Gemini, etc)
-                   response = await fetch('/generate', {
-                       method: 'POST',
-                       headers: { 'Content-Type': 'application/json' },
-                       body: JSON.stringify({
-                           messages: [
-                               { role: "system", content: systemPromptAthena },
-                               { role: "user", content: finalMessage }
-                           ],
-                           selected_model: model 
-                       })
-                   });
-               }
-               
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: finalMessage,
+                        images: imagePayloads,
+                        model: model,
+                        system_prompt: systemPromptAthena
+                    })
+                });
+
                 if (textOverride === null) {
                     globalAttachments = [];
                     renderThumbnails();
@@ -389,20 +371,15 @@
                     let errorMsg = `Erro HTTP ${response.status}`;
                     try { 
                         const errorData = await response.json(); 
-                        // Transforma o objeto de erro em texto para não cair na armadilha do [object Object]
                         errorMsg = typeof errorData.error === 'object' ? JSON.stringify(errorData.error) : (errorData.error || errorMsg);
                     } catch(e) {}
-                    throw new Error(`O servidor Flask relatou um problema: ${errorMsg}`);
+                    throw new Error(`O servidor relatou um problema: ${errorMsg}`);
                 }
 
                 marked.setOptions({ breaks: true, gfm: true });
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder("utf-8");
-                let sseBuffer = '';
 
-                // 2. LEITURA DE STREAMING UNIFICADA (Simplificada)
-                // O Flask (app.py) já faz todo o trabalho duro de "traduzir" os dados, 
-                // então o frontend só precisa receber o texto limpo!
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
@@ -413,17 +390,9 @@
                     textContainer.innerHTML = marked.parse(accumulatedText);
                     chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
                 }
-                    } else {
-                        accumulatedText += chunkStr;
-                    }
-                    
-                    textContainer.innerHTML = marked.parse(accumulatedText);
-                    chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
-                }
                 
                 textContainer.setAttribute('data-raw-markdown', encodeURIComponent(accumulatedText));
 
-                // --- MOTOR DE AGENTE AUTÔNOMO ATHENA (BLINDADO) ---
                 const automacaoMatch = accumulatedText.match(/```json\s*\n\s*\{\s*"athena_action":/i);
                 if (automacaoMatch) {
                     try {
@@ -453,19 +422,14 @@
                         console.log("Falha ao parsear ação autônoma da IA", e);
                     }
                 }
-                // --- FIM DO MOTOR DE AGENTE AUTÔNOMO ---
                
                 saveCurrentChat();
 
             } catch (error) {
-                // Remove a máscara genérica de CORS para exibir o erro real do sistema.
                 const errorDetails = error.message || "Erro desconhecido ao conectar com o servidor.";
-
                 textContainer.innerHTML = `
                     <span class="text-red-400 font-mono text-sm">⚠️ Falha na Conexão: ${errorDetails}</span><br><br>
-                    <span class="text-gray-400 text-xs">🛑 <b>DICA DE SISTEMA:</b> Verifique se o 'Local API server' no LM Studio bionic está marcado como "Running" na porta 1234 e se a chave 'CORS' logo abaixo está ativada.</span>`;
-        
-                // Salva no histórico mesmo se der erro, para não perder o prompt
+                    <span class="text-gray-400 text-xs">🛑 <b>DICA DE SISTEMA:</b> Verifique se o backend está ativo e configurado corretamente.</span>`;
                 saveCurrentChat(); 
             }
         }

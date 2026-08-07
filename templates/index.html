@@ -339,6 +339,7 @@
                 let attachedText = "";
                 const imagePayloads = [];
 
+                // Mantém a funcionalidade de até 50 anexos
                 globalAttachments.forEach(f => {
                     if (f.type.startsWith('text/')) {
                         attachedText += `\n[Conteúdo Anexado: ${f.name}]:\n${f.data}`;
@@ -349,18 +350,41 @@
 
                 const finalMessage = text + attachedText;
                 
+                // Mantém o seu prompt de sistema e agente autônomo inalterados
                 const systemPromptAthena = `Você é a ATHENA IA, v5.2 OS. Perfil do usuário: ${profileData}. Responda em Markdown estruturado (ideal para exportação Obsidian). Você atua como uma engenheira de software autônoma. Se o usuário pedir para criar projetos, sites, pastas ou arquivos locais, você DEVE gerar estritamente um bloco JSON escondido nesta estrutura exata: \`\`\`json\n{"athena_action": "create_file", "path": "nome_do_arquivo.extensao", "content": "codigo completo aqui"}\n\`\`\`. Ações permitidas: create_file, create_folder, run_cmd.`;
 
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: finalMessage,
-                        images: imagePayloads,
-                        model: model,
-                        system_prompt: systemPromptAthena
-                    })
-                });
+                let response;
+                const isLocalModel = (model === 'local');
+
+                // LÓGICA DE BYPASS (O CORAÇÃO DA SOLUÇÃO)
+                if (isLocalModel) {
+                    // O navegador (Frontend) fala DIRETAMENTE com o LM Studio na sua máquina física
+                    response = await fetch('http://127.0.0.1:1234/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: "modelo-carregado-no-lm-studio", // O LM Studio ignora esse nome e usa o que estiver aberto
+                            messages: [
+                                { role: "system", content: systemPromptAthena },
+                                { role: "user", content: finalMessage }
+                            ],
+                            temperature: 0.7,
+                            stream: true
+                        })
+                    });
+                } else {
+                    // Fluxo normal da nuvem: O navegador fala com o Render (Backend)
+                    response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: finalMessage,
+                            images: imagePayloads,
+                            model: model,
+                            system_prompt: systemPromptAthena
+                        })
+                    });
+                }
 
                 if (textOverride === null) {
                     globalAttachments = [];
@@ -379,13 +403,33 @@
                 marked.setOptions({ breaks: true, gfm: true });
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder("utf-8");
+                
+                let sseBuffer = ""; // Buffer para pacotes de dados do LM Studio
 
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
                     
                     const chunkStr = decoder.decode(value, { stream: true });
-                    accumulatedText += chunkStr;
+                    
+                    // Tratamento duplo de streaming (SSE para Local / Texto puro para Render)
+                    if (isLocalModel) {
+                        sseBuffer += chunkStr;
+                        const lines = sseBuffer.split('\n');
+                        sseBuffer = lines.pop(); // Guarda pedaços incompletos para o próximo ciclo
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ') && !line.includes('[DONE]')) {
+                                try {
+                                    const parsed = JSON.parse(line.substring(6).trim());
+                                    const content = parsed.choices[0]?.delta?.content || '';
+                                    accumulatedText += content;
+                                } catch(e) {} // Ignora fragmentos perfeitamente
+                            }
+                        }
+                    } else {
+                        accumulatedText += chunkStr;
+                    }
                     
                     textContainer.innerHTML = marked.parse(accumulatedText);
                     chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
@@ -393,6 +437,7 @@
                 
                 textContainer.setAttribute('data-raw-markdown', encodeURIComponent(accumulatedText));
 
+                // Mantém o motor do Agente Autônomo e Playwright Bridge intacto
                 const automacaoMatch = accumulatedText.match(/```json\s*\n\s*\{\s*"athena_action":/i);
                 if (automacaoMatch) {
                     try {

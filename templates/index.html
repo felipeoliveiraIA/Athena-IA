@@ -83,7 +83,6 @@
             </div>
             <div class="flex items-center gap-2 sm:gap-3">
                 <!-- LISTA DE MODELOS (Atualizados para as rotas gratuitas vigentes e estáveis do OpenRouter) -->
-                <!-- LISTA DE MODELOS (Atualizados para as rotas gratuitas vigentes e estáveis do OpenRouter) -->
                 <select id="model-select" class="bg-gray-800 text-xs sm:text-sm text-gray-300 rounded px-1 sm:px-3 py-2 border border-gray-600 max-w-[120px] sm:max-w-none truncate">
                     <!-- Google (Atualizado para o ID experimental vigente e mais estável) -->
                     <option value="google/gemini-2.0-pro-exp-02-05:free" selected>☁️ Gemini 2.0 Pro Exp (Padrão Vibe Coder)</option>
@@ -382,20 +381,33 @@
                         console.log("Não foi possível buscar o ID do modelo no LM Studio. Usando fallback...");
                     }
 
-                    // Passo 2: O navegador (Frontend) fala DIRETAMENTE com o LM Studio enviando o ID exato
-                    response = await fetch('http://127.0.0.1:1234/v1/chat/completions', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            model: loadedModelName, 
-                            messages: [
-                                { role: "system", content: systemPromptAthena },
-                                { role: "user", content: userMessagePayload }
-                            ],
-                            temperature: 0.7,
-                            stream: true
-                        })
-                    });
+                    // Passo 2: O navegador fala DIRETAMENTE com o LM Studio (Com proteção de Timeout)
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 60000); // Cancela se o LM Studio travar por mais de 1 minuto
+                    
+                    try {
+                        response = await fetch('http://127.0.0.1:1234/v1/chat/completions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            signal: controller.signal,
+                            body: JSON.stringify({
+                                model: loadedModelName, 
+                                messages: [
+                                    { role: "system", content: systemPromptAthena },
+                                    { role: "user", content: userMessagePayload }
+                                ],
+                                temperature: 0.7,
+                                stream: true
+                            })
+                        });
+                        clearTimeout(timeoutId);
+                    } catch (err) {
+                        clearTimeout(timeoutId);
+                        if (err.name === 'AbortError') {
+                            throw new Error("Timeout: O LM Studio demorou mais de 1 minuto para responder. Verifique se o modelo não está pesado demais para a sua memória RAM.");
+                        }
+                        throw err; 
+                    }
                 } else {
                     // Fluxo normal da nuvem: O navegador fala com o Render (Backend)
                     // Auto-detecção (Corrige o "Failed to fetch" do Print 1): 

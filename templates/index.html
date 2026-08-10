@@ -1025,22 +1025,24 @@
         function processLiveInput(text) {
             document.getElementById('ghost-bubble').innerText = "⚙️ Processando...";
             
-            // Captura um frame da webcam (Magia Multimodal)
+            // Captura um frame da webcam (Magia Multimodal Real)
             const video = document.getElementById('webcam-feed');
             const canvas = document.getElementById('live-canvas');
-            let imagePayload = "";
+            
             if (video.videoWidth > 0) {
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-                imagePayload = "\n[Imagem da Câmera Capturada em Tempo Real]";
+                const base64Image = canvas.toDataURL('image/jpeg');
+                
+                // NOVO: Anexa silenciosamente o frame de vídeo como um arquivo para a IA analisar
+                globalAttachments.push({ name: 'Live_Frame.jpg', type: 'image/jpeg', data: base64Image });
+                renderThumbnails();
             }
 
-            // Manda o texto pro chat normal (que aciona a IA)
-            userInput.value = text + imagePayload;
+            // Manda o texto pro chat normal (que aciona a IA, envia a foto e limpa o buffer)
+            userInput.value = text;
             handleSend(); 
-            
-            // Tratamento anti-eco: O reconhecimento é desligado momentaneamente quando a IA responde (handleSend faz o botão Play ser ativado depois).
         }
 
         // --- 7. MÓDULOS DE APRIMORAMENTO GEMINI-LIKE ---

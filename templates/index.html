@@ -350,7 +350,17 @@
 
                 const finalMessage = text + attachedText;
                 
-                // Mantém o seu prompt de sistema e agente autônomo inalterados
+                // NOVO: Formatação Multimodal (Array) compatível com a Nuvem e com LM Studio
+                let messageContent = [];
+                if (finalMessage) {
+                    messageContent.push({ type: "text", text: finalMessage });
+                }
+                imagePayloads.forEach(img => {
+                    messageContent.push({ type: "image_url", image_url: { url: img } });
+                });
+                // Se não houver imagem, manda como string para não quebrar modelos básicos
+                const userMessagePayload = imagePayloads.length > 0 ? messageContent : finalMessage;
+
                 const systemPromptAthena = `Você é a ATHENA IA, v5.2 OS. Perfil do usuário: ${profileData}. Responda em Markdown estruturado (ideal para exportação Obsidian). Você atua como uma engenheira de software autônoma. Se o usuário pedir para criar projetos, sites, pastas ou arquivos locais, você DEVE gerar estritamente um bloco JSON escondido nesta estrutura exata: \`\`\`json\n{"athena_action": "create_file", "path": "nome_do_arquivo.extensao", "content": "codigo completo aqui"}\n\`\`\`. Ações permitidas: create_file, create_folder, run_cmd.`;
 
                 let response;
@@ -363,10 +373,10 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            model: "modelo-carregado-no-lm-studio", // O LM Studio ignora esse nome e usa o que estiver aberto
+                            model: "local-model", // Nome genérico, o LM Studio usa o que estiver na memória
                             messages: [
                                 { role: "system", content: systemPromptAthena },
-                                { role: "user", content: finalMessage }
+                                { role: "user", content: userMessagePayload }
                             ],
                             temperature: 0.7,
                             stream: true
@@ -395,7 +405,12 @@
                     let errorMsg = `Erro HTTP ${response.status}`;
                     try { 
                         const errorData = await response.json(); 
-                        errorMsg = typeof errorData.error === 'object' ? JSON.stringify(errorData.error) : (errorData.error || errorMsg);
+                        errorMsg = errorData.error?.message || (typeof errorData.error === 'object' ? JSON.stringify(errorData.error) : (errorData.error || errorMsg));
+                        
+                        // NOVO: Tratamento amigável e específico para o erro do LM Studio
+                        if (errorMsg.includes("No models loaded") || errorMsg.includes("lms load")) {
+                            errorMsg = "Nenhum modelo carregado! Abra o LM Studio, carregue um modelo na memória e tente novamente.";
+                        }
                     } catch(e) {}
                     throw new Error(`O servidor relatou um problema: ${errorMsg}`);
                 }

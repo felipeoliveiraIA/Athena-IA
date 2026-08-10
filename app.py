@@ -71,46 +71,49 @@ def chat():
             def generate():
                 nonlocal selected_model 
                 
-                # 🟢 ROTEADOR INTELIGENTE PARA HD LOCAL (LM STUDIO)
-                if "local" in selected_model.lower() or "1234" in selected_model:
-                    url_local = "http://127.0.0.1:1234/v1/chat/completions"
-                    payload_local = {
-                        "model": "qwen2.5-coder-7b-instruct",
-                        "messages": payload.get("messages", []),
-                        "temperature": 0.7,
-                        "stream": True
-                    }
-                    try:
-                        resp_local = requests.post(url_local, json=payload_local, stream=True, timeout=60)
-                        if not resp_local.ok:
-                            yield f"\n\n**Erro no HD Local:** O LM Studio recusou a conexão ({resp_local.status_code}). Verifique se o modelo está carregado no programa."
-                            return
-                        for line in resp_local.iter_lines():
-                            if line:
-                                dec = line.decode('utf-8')
-                                if dec.startswith('data: '):
-                                    d_str = dec[6:]
-                                    if d_str == '[DONE]':
-                                        break
-                                    try:
-                                        cj = json.loads(d_str)
-                                        chunk = cj['choices'][0]['delta'].get('content', '')
-                                        if chunk:
-                                            yield chunk
-                                    except:
-                                        pass
-                        return
-                    except Exception as e:
-                        yield f"\n\n**Erro de Conexão Local:** {str(e)}"
-                        return
-
-                # --- SEGUIDO DA SUA LÓGICA NORMAL DO OPENROUTER ABAIXO ---
                 fallback_models = [
+                    selected_model,
                     'qwen/qwen-2.5-coder-32b-instruct:free',
                     'meta-llama/llama-3.3-70b-instruct:free',
                     'google/gemini-2.0-pro-exp-02-05:free'
                 ]
-                # ... (resto do seu código do OpenRouter)
+                
+                for model_to_try in fallback_models:
+                    if not model_to_try:
+                        continue
+                    payload["model"] = model_to_try
+                    try:
+                        resp = requests.post(
+                            "https://openrouter.ai/api/v1/chat/completions",
+                            headers=headers,
+                            json=payload,
+                            stream=True,
+                            timeout=30
+                        )
+                        if resp.status_code == 200:
+                            for line in resp.iter_lines():
+                                if line:
+                                    decoded = line.decode('utf-8')
+                                    if decoded.startswith('data: '):
+                                        data_sub = decoded[6:].strip()
+                                        if data_sub == '[DONE]':
+                                            break
+                                        try:
+                                            json_data = json.loads(data_sub)
+                                            delta = json_data['choices'][0]['delta'].get('content', '')
+                                            if delta:
+                                                yield delta
+                                        except:
+                                            pass
+                            return
+                        elif resp.status_code == 402:
+                            yield "\n\n**Erro 402:** Saldo esgotado na API OpenRouter. Tentando próximo modelo de fallback..."
+                            continue
+                        else:
+                            continue
+                    except Exception as e:
+                        continue
+                yield "\n\n**Erro Crítico:** Todos os modelos de nuvem falharam ou o saldo esgotou."
                 
         elif selected_model == 'local':
             # LM Studio também suporta streaming

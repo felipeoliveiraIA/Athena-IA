@@ -425,9 +425,11 @@
                         const errorData = await response.json(); 
                         errorMsg = errorData.error?.message || (typeof errorData.error === 'object' ? JSON.stringify(errorData.error) : (errorData.error || errorMsg));
                         
-                        // NOVO: Tratamento amigável e específico para o erro do LM Studio
+                        // NOVO: Tratamento amigável e específico para erros do LM Studio (Modelos e Hardware)
                         if (errorMsg.includes("No models loaded") || errorMsg.includes("lms load")) {
                             errorMsg = "Nenhum modelo carregado! Abra o LM Studio, carregue um modelo na memória e tente novamente.";
+                        } else if (errorMsg.includes("Vulkan") || errorMsg.includes("UUID") || errorMsg.includes("device")) {
+                            errorMsg = "Falha no Driver da Placa de Vídeo (Vulkan) no LM Studio. Abra o LM Studio > Settings > Hardware Acceleration e altere 'Vulkan' para 'OpenCL' ou desative o GPU Offload.";
                         }
                     } catch(e) {}
                     throw new Error(`O servidor relatou um problema: ${errorMsg}`);

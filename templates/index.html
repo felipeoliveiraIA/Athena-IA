@@ -366,14 +366,28 @@
                 let response;
                 const isLocalModel = (model === 'local');
 
-                // LÓGICA DE BYPASS (O CORAÇÃO DA SOLUÇÃO)
+                // LÓGICA DE BYPASS (O CORAÇÃO DA SOLUÇÃO) - APRIMORADA
                 if (isLocalModel) {
-                    // O navegador (Frontend) fala DIRETAMENTE com o LM Studio na sua máquina física
+                    // Passo 1: Consultar dinamicamente qual é o NOME EXATO do modelo carregado no LM Studio
+                    let loadedModelName = "local-model";
+                    try {
+                        const checkModel = await fetch('http://127.0.0.1:1234/v1/models');
+                        if (checkModel.ok) {
+                            const modelData = await checkModel.json();
+                            if (modelData.data && modelData.data.length > 0) {
+                                loadedModelName = modelData.data[0].id; // Captura o ID literal do modelo na memória
+                            }
+                        }
+                    } catch(e) {
+                        console.log("Não foi possível buscar o ID do modelo no LM Studio. Usando fallback...");
+                    }
+
+                    // Passo 2: O navegador (Frontend) fala DIRETAMENTE com o LM Studio enviando o ID exato
                     response = await fetch('http://127.0.0.1:1234/v1/chat/completions', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            model: "local-model", // Nome genérico, o LM Studio usa o que estiver na memória
+                            model: loadedModelName, 
                             messages: [
                                 { role: "system", content: systemPromptAthena },
                                 { role: "user", content: userMessagePayload }
@@ -384,7 +398,11 @@
                     });
                 } else {
                     // Fluxo normal da nuvem: O navegador fala com o Render (Backend)
-                    response = await fetch('/api/chat', {
+                    // Auto-detecção (Corrige o "Failed to fetch" do Print 1): 
+                    // Se você abrir o index.html direto pelo Windows (file:///), ele força a busca no localhost
+                    const backendUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:10000/api/chat' : '/api/chat';
+                    
+                    response = await fetch(backendUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

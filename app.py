@@ -107,13 +107,17 @@ def chat():
                                             pass
                             return
                         elif resp.status_code == 402:
-                            yield "\n\n**Erro 402:** Saldo esgotado na API OpenRouter. Tentando próximo modelo de fallback..."
+                            yield f"\n\n**Erro 402:** Saldo esgotado no modelo {model_to_try}. Tentando fallback..."
                             continue
                         else:
+                            yield f"\n\n**Erro {resp.status_code} no OpenRouter ({model_to_try}).** Tentando fallback..."
                             continue
                     except Exception as e:
                         continue
-                yield "\n\n**Erro Crítico:** Todos os modelos de nuvem falharam ou o saldo esgotou."
+                yield "\n\n**Erro Crítico:** Todos os modelos de nuvem falharam."
+            
+            # --- CORREÇÃO ATHENA: ESSA LINHA FALTAVA! ELA DEVOLVE O TEXTO PARA A TELA ---
+            return Response(generate(), mimetype='text/event-stream')
                 
         elif selected_model == 'local':
             # LM Studio também suporta streaming

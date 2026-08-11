@@ -1,18 +1,18 @@
 import os
 import requests
-from flask import Flask, render_template, request, jsonify
+import json
+from flask import Flask, render_template, request, jsonify, Response
 from flask_cors import CORS
 
 # --- INÍCIO DA SOLUÇÃO DEFINITIVA (Caminhos Absolutos) ---
-# Calcula o caminho real do arquivo atual para não depender do terminal
 diretorio_base = os.path.dirname(os.path.abspath(__file__))
-# Força o Flask a olhar estritamente para a pasta 'templates' dentro deste diretório
 pasta_templates = os.path.join(diretorio_base, 'templates')
 
 app = Flask(__name__, template_folder=pasta_templates)
 # --- FIM DA SOLUÇÃO DEFINITIVA ---
-# Permite comunicação perfeita com o frontend local e em nuvem
-CORS(app, resources={r"/*": {"origins": "*"}})
+
+# [CORREÇÃO CRÍTICA]: O CORS precisa permitir requisições globais e especificar a porta
+CORS(app, resources={r"/*": {"origins": ["https://athena-ia.onrender.com", "http://localhost:10000", "*"]}})
 
 # Busca a chave de forma segura nas variáveis de ambiente do Render
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
@@ -74,7 +74,11 @@ def chat():
             def generate():
                 nonlocal selected_model 
                 
-                # Lista atualizada com os IDs gratuitos mais estáveis do OpenRouter hoje
+                # BLINDAGEM: Se o frontend mandar modelo inválido antigo, força a correção automática
+                if selected_model == "gemini-direct":
+                    selected_model = 'google/gemini-2.0-flash-lite-preview-02-05:free'
+                
+                # Lista atualizada com os IDs gratuitos mais estáveis do OpenRouter
                 fallback_models = [
                     selected_model,
                     'google/gemini-2.0-flash-lite-preview-02-05:free',

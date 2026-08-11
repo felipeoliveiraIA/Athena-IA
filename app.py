@@ -72,17 +72,29 @@ def chat():
             def generate():
                 nonlocal selected_model 
                 
+                # Lista atualizada com os IDs gratuitos mais estáveis do OpenRouter hoje
                 fallback_models = [
                     selected_model,
+                    'google/gemini-2.0-flash-lite-preview-02-05:free',
                     'qwen/qwen-2.5-coder-32b-instruct:free',
-                    'meta-llama/llama-3.3-70b-instruct:free',
-                    'google/gemini-2.0-pro-exp-02-05:free'
+                    'meta-llama/llama-3.3-70b-instruct:free'
                 ]
                 
                 for model_to_try in fallback_models:
                     if not model_to_try:
                         continue
+                        
+                    # LÓGICA ANTI-ERRO 400: Modelos Llama/Qwen grátis rejeitam payload de imagem.
+                    # Se não for modelo focado em visão e houver imagens, mandamos só o texto pro fallback.
+                    is_vision_model = 'gemini' in model_to_try.lower() or 'vision' in model_to_try.lower()
+                    
+                    if images and not is_vision_model:
+                        payload["messages"][1]["content"] = user_message # Força envio apenas de texto
+                    else:
+                        payload["messages"][1]["content"] = final_content # Texto + Imagens
+                        
                     payload["model"] = model_to_try
+                    
                     try:
                         resp = requests.post(
                             "https://openrouter.ai/api/v1/chat/completions",
@@ -95,27 +107,30 @@ def chat():
                             for line in resp.iter_lines():
                                 if line:
                                     decoded = line.decode('utf-8')
-                                    if decoded.startswith('data: '):
-                                        data_sub = decoded[6:].strip()
-                                        if data_sub == '[DONE]':
-                                            break
+                                    # Corrige falha de conversão no streaming
+                                    if decoded.startswith('data: ') and '[DONE]' not in decoded:
                                         try:
-                                            json_data = json.loads(data_sub)
+                                            json_data = json.loads(decoded[6:].strip())
                                             delta = json_data['choices'][0]['delta'].get('content', '')
                                             if delta:
                                                 yield delta
                                         except:
                                             pass
-                            return
-                        elif resp.status_code == 402:
-                            yield f"\n\n**Erro 402:** Saldo esgotado no modelo {model_to_try}. Tentando fallback..."
+                            return # Sucesso absoluto, encerra o loop de tentativas
+                        elif resp.status_code == 404:
+                            yield f"\n\n*(Aviso: O OpenRouter desativou o modelo {model_to_try}. Redirecionando...)* "
                             continue
-                        else:
-                            yield f"\n\n**Erro {resp.status_code} no OpenRouter ({model_to_try}).** Tentando fallback..."
+                        elif resp.status_code == 400:
+                            yield f"\n\n*(Aviso: Formato incompatível no modelo {model_to_try}. Redirecionando...)* "
+                            continue
+                        elif resp.status_code == 402:
+                            yield f"\n\n*(Aviso: Cota gratuita do modelo {model_to_try} excedida. Redirecionando...)* "
                             continue
                     except Exception as e:
                         continue
-                yield "\n\n**Erro Crítico:** Todos os modelos de nuvem falharam."
+                        
+                # Se o loop terminar e todos falharem, exibe um erro amigável ao invés de quebrar
+                yield "\n\n**Erro Crítico de Roteamento:** Todos os modelos de nuvem do OpenRouter falharam ou estão congestionados. Tente novamente em alguns instantes."
             
             # --- CORREÇÃO ATHENA: ESSA LINHA FALTAVA! ELA DEVOLVE O TEXTO PARA A TELA ---
             return Response(generate(), mimetype='text/event-stream')

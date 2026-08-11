@@ -15,8 +15,12 @@ app = Flask(__name__, template_folder=pasta_templates)
 CORS(app, resources={r"/*": {"origins": ["https://athena-ia.onrender.com", "http://localhost:10000", "*"]}})
 
 # Busca a chave de forma segura nas variáveis de ambiente do Render
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+OMNIROUTER_API_KEY = os.environ.get("OMNIROUTER_API_KEY", os.environ.get("OPENROUTER_API_KEY", ""))
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+# Define o Gateway. Se você configurar a variável GATEWAY_URL no Render, ele usa. 
+# Senão, cai no padrão OpenRouter.
+GATEWAY_URL = os.environ.get("GATEWAY_URL", "https://openrouter.ai/api/v1/chat/completions")
 
 # Configuração da URL de Origem para liberação de uso na API gratuita
 SITE_URL = os.environ.get("SITE_URL", "https://athena-ia.onrender.com")
@@ -51,34 +55,20 @@ def chat():
         final_content = message_content if images else user_message
 
         if selected_model != 'local':
-            if not OPENROUTER_API_KEY:
-                return jsonify({'error': 'Chave da API OpenRouter não configurada.'}), 500
+            if not OMNIROUTER_API_KEY:
+                return jsonify({'error': 'Chave do Gateway (Omnirouter/OpenRouter) não configurada.'}), 500
             
             headers = {
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Authorization": f"Bearer {OMNIROUTER_API_KEY}",
                 "Content-Type": "application/json",
                 "HTTP-Referer": SITE_URL,
                 "X-Title": "ATHENA IA v5.2 OS"
             }
             
-            payload = {
-                "model": selected_model, 
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": final_content}
-                ],
-                "max_tokens": 2000,
-                "stream": True # Ativa o Streaming no OpenRouter
-            }
-
             def generate():
                 nonlocal selected_model 
                 
-                # BLINDAGEM: Se o frontend mandar modelo inválido antigo, força a correção automática
-                if selected_model == "gemini-direct":
-                    selected_model = 'google/gemini-2.0-flash-lite-preview-02-05:free'
-                
-                # Lista atualizada com os IDs gratuitos mais estáveis do OpenRouter
+                # Modelos gratuitos otimizados para o gateway
                 fallback_models = [
                     selected_model,
                     'google/gemini-2.0-flash-lite-preview-02-05:free',
@@ -90,55 +80,54 @@ def chat():
                     if not model_to_try:
                         continue
                         
-                    # LÓGICA ANTI-ERRO 400: Modelos Llama/Qwen grátis rejeitam payload de imagem.
-                    # Se não for modelo focado em visão e houver imagens, mandamos só o texto pro fallback.
-                    is_vision_model = 'gemini' in model_to_try.lower() or 'vision' in model_to_try.lower()
+                    # CORREÇÃO ABSOLUTA DO ERRO 400: Limpeza estrutural do payload.
+                    # Identifica rigorosamente se o modelo aceita visão.
+                    is_vision_model = any(kw in model_to_try.lower() for kw in ['gemini', 'vision', 'claude', 'gpt-4o'])
                     
-                    if images and not is_vision_model:
-                        payload["messages"][1]["content"] = user_message # Força envio apenas de texto
+                    if images and is_vision_model:
+                        current_content = message_content # Array Multimodal (Texto + Base64)
                     else:
-                        payload["messages"][1]["content"] = final_content # Texto + Imagens
+                        current_content = user_message # Força String pura. Salva os modelos Llama e Qwen de darem erro 400.
                         
-                    payload["model"] = model_to_try
+                    payload = {
+                        "model": model_to_try, 
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": current_content}
+                        ],
+                        "max_tokens": 2000,
+                        "stream": True
+                    }
                     
                     try:
-                        resp = requests.post(
-                            "https://openrouter.ai/api/v1/chat/completions",
-                            headers=headers,
-                            json=payload,
-                            stream=True,
-                            timeout=30
-                        )
+                        resp = requests.post(GATEWAY_URL, headers=headers, json=payload, stream=True, timeout=30)
+                        
                         if resp.status_code == 200:
                             for line in resp.iter_lines():
                                 if line:
                                     decoded = line.decode('utf-8')
-                                    # Corrige falha de conversão no streaming
                                     if decoded.startswith('data: ') and '[DONE]' not in decoded:
                                         try:
                                             json_data = json.loads(decoded[6:].strip())
-                                            delta = json_data['choices'][0]['delta'].get('content', '')
+                                            # Proteção extra na extração do dicionário
+                                            delta = json_data.get('choices', [{}])[0].get('delta', {}).get('content', '')
                                             if delta:
                                                 yield delta
                                         except:
                                             pass
-                            return # Sucesso absoluto, encerra o loop de tentativas
-                        elif resp.status_code == 404:
-                            yield f"\n\n*(Aviso: O OpenRouter desativou o modelo {model_to_try}. Redirecionando...)* "
+                            return # Sucesso absoluto, encerra o loop
+                        else:
+                            # Log interno no terminal para você debugar, e aviso visual na tela
+                            print(f"[GATEWAY ERRO] Modelo: {model_to_try} | Status: {resp.status_code} | Resposta: {resp.text}")
+                            yield f"\n\n*(Aviso: Falha no modelo {model_to_try} [Erro {resp.status_code}]. Roteando pelo gateway...)* "
                             continue
-                        elif resp.status_code == 400:
-                            yield f"\n\n*(Aviso: Formato incompatível no modelo {model_to_try}. Redirecionando...)* "
-                            continue
-                        elif resp.status_code == 402:
-                            yield f"\n\n*(Aviso: Cota gratuita do modelo {model_to_try} excedida. Redirecionando...)* "
-                            continue
+                            
                     except Exception as e:
+                        print(f"[GATEWAY TIMEOUT] Erro de conexão: {str(e)}")
                         continue
                         
-                # Se o loop terminar e todos falharem, exibe um erro amigável ao invés de quebrar
-                yield "\n\n**Erro Crítico de Roteamento:** Todos os modelos de nuvem do OpenRouter falharam ou estão congestionados. Tente novamente em alguns instantes."
+                yield "\n\n**Erro Crítico de Roteamento:** O Gateway (Omnirouter/OpenRouter) não conseguiu processar os modelos gratuitos disponíveis no momento. Aguarde uns instantes ou rode a IA no modo 'HD Local'."
             
-            # --- CORREÇÃO ATHENA: ESSA LINHA FALTAVA! ELA DEVOLVE O TEXTO PARA A TELA ---
             return Response(generate(), mimetype='text/event-stream')
                 
         elif selected_model == 'local':

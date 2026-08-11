@@ -84,13 +84,13 @@
             <div class="flex items-center gap-2 sm:gap-3">
                 <!-- LISTA DE MODELOS (ATHENA OmniRouter Nativo) -->
                 <select id="model-select" class="bg-gray-800 text-xs sm:text-sm text-gray-300 rounded px-1 sm:px-3 py-2 border border-gray-600 max-w-[120px] sm:max-w-none truncate">
-                    <!-- Rota Direta Google -->
-                    <option value="gemini-direct" selected>☁️ Gemini 2.0 (API Direta Google - Estável)</option>
-                    <!-- Rota OpenRouter (Apenas como Backup) -->
-                    <option value="qwen/qwen-2.5-coder-32b-instruct:free">☁️ Qwen Coder (OpenRouter Backup)</option>
+                    <!-- Rota OpenRouter (Modelos Gratuitos e Estáveis) -->
+                    <option value="google/gemini-2.0-flash-lite-preview-02-05:free" selected>☁️ Gemini 2.0 Flash (OpenRouter Gratuito)</option>
+                    <option value="qwen/qwen-2.5-coder-32b-instruct:free">☁️ Qwen Coder 32B (OpenRouter Gratuito)</option>
+                    <option value="meta-llama/llama-3.3-70b-instruct:free">☁️ Llama 3.3 70B (OpenRouter Gratuito)</option>
                     <!-- Local -->
                     <option value="local">💻 HD Local (LM Studio - 100% Ilimitado e Seguro)</option>
-                </select>
+                </select>            
                 <select id="voice-speed" class="hidden sm:block bg-gray-800 text-sm text-gray-300 rounded px-2 py-2 border border-gray-600">
                     <option value="1.0" selected>Voz: 1.0x</option>
                 </select>

@@ -367,6 +367,11 @@
 
                 // LÓGICA DE BYPASS (O CORAÇÃO DA SOLUÇÃO) - APRIMORADA
                 if (isLocalModel) {
+                    // CORREÇÃO DE SEGURANÇA: Bloqueio de Mixed Content (Render HTTPS vs Localhost HTTP)
+                    if (window.location.protocol === 'https:') {
+                        throw new Error("Conflito de Arquitetura: Você está acessando a ATHENA pela nuvem (Render/HTTPS). O navegador bloqueia a comunicação com o seu HD Local (LM Studio/HTTP) por segurança. Para rodar a IA do HD, acesse a interface abrindo o arquivo index.html no seu PC ou via http://localhost:10000.");
+                    }
+
                     // Passo 1: Consultar dinamicamente qual é o NOME EXATO do modelo carregado no LM Studio
                     let loadedModelName = "local-model";
                     try {

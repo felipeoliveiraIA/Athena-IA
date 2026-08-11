@@ -16,6 +16,8 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Busca a chave de forma segura nas variáveis de ambiente do Render
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
 # Configuração da URL de Origem para liberação de uso na API gratuita
 SITE_URL = os.environ.get("SITE_URL", "https://athena-ia.onrender.com")
 

@@ -20,7 +20,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 # Define o Gateway. Se você configurar a variável GATEWAY_URL no Render, ele usa. 
 # Senão, cai no padrão OpenRouter.
-GATEWAY_URL = os.environ.get("GATEWAY_URL", "https://openrouter.ai/api/v1/chat/completions")
+GATEWAY_URL = os.environ.get("GATEWAY_URL", "https://omnirouter-gateway-uh97.onrender.com/v1/chat/completions")
 
 # Configuração da URL de Origem para liberação de uso na API gratuita
 SITE_URL = os.environ.get("SITE_URL", "https://athena-ia.onrender.com")
@@ -68,13 +68,26 @@ def chat():
             def generate():
                 nonlocal selected_model 
                 
-                # Modelos gratuitos otimizados para o gateway
-                fallback_models = [
-                    selected_model,
-                    'google/gemini-2.0-flash-lite-preview-02-05:free',
-                    'qwen/qwen-2.5-coder-32b-instruct:free',
-                    'meta-llama/llama-3.3-70b-instruct:free'
-                ]
+                # --- INÍCIO DA LÓGICA DO OMNIROUTER AUTOMÁTICO ---
+                if selected_model == 'omnirouter-auto':
+                    # Lista blindada para suas necessidades: Gratuitas, Open Source, Vibe Coders, Agentes e 24/7 na nuvem.
+                    # O código iterará sobre elas automaticamente: se uma falhar, ele usa a de baixo imediatamente.
+                    fallback_models = [
+                        'qwen/qwen-2.5-coder-32b-instruct:free',          # A melhor IA Open Source para Vibe Coding atual
+                        'meta-llama/llama-3.3-70b-instruct:free',         # Excelente orquestradora autônoma
+                        'google/gemini-2.0-flash-lite-preview-02-05:free',# Suporte robusto a visão multimodal contínua
+                        'deepseek/deepseek-r1-distill-llama-70b:free',    # Raciocínio profundo open source
+                        'mistralai/mistral-nemo:free'                     # Backup leve, ágil e altamente funcional
+                    ]
+                else:
+                    # Roteamento padrão caso você decida clicar em um modelo específico manualmente
+                    fallback_models = [
+                        selected_model,
+                        'google/gemini-2.0-flash-lite-preview-02-05:free',
+                        'qwen/qwen-2.5-coder-32b-instruct:free',
+                        'meta-llama/llama-3.3-70b-instruct:free'
+                    ]
+                # --- FIM DA LÓGICA DO OMNIROUTER AUTOMÁTICO ---
                 
                 for model_to_try in fallback_models:
                     if not model_to_try:

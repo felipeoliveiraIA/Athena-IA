@@ -82,16 +82,12 @@
                 </select>
             </div>
             <div class="flex items-center gap-2 sm:gap-3">
-                <!-- LISTA DE MODELOS (Atualizados para as rotas gratuitas vigentes e estáveis do OpenRouter) -->
+                <!-- LISTA DE MODELOS (ATHENA OmniRouter Nativo) -->
                 <select id="model-select" class="bg-gray-800 text-xs sm:text-sm text-gray-300 rounded px-1 sm:px-3 py-2 border border-gray-600 max-w-[120px] sm:max-w-none truncate">
-                    <!-- Google (Atualizado para o ID experimental vigente e mais estável) -->
-                    <option value="google/gemini-2.0-pro-exp-02-05:free" selected>☁️ Gemini 2.0 Pro Exp (Padrão Vibe Coder)</option>
-                    <!-- Qwen -->
-                    <option value="qwen/qwen-2.5-coder-32b-instruct:free">☁️ Qwen 2.5 Coder 32B (Código/Lógica)</option>
-                    <!-- Llama -->
-                    <option value="meta-llama/llama-3.3-70b-instruct:free">☁️ Llama 3.3 70B (Grátis Estável)</option>
-                    <!-- Deepseek -->
-                    <option value="deepseek/deepseek-r1:free">☁️ DeepSeek R1 (Grátis - Sujeito a Fila)</option>
+                    <!-- Rota Direta Google -->
+                    <option value="gemini-direct" selected>☁️ Gemini 2.0 (API Direta Google - Estável)</option>
+                    <!-- Rota OpenRouter (Apenas como Backup) -->
+                    <option value="qwen/qwen-2.5-coder-32b-instruct:free">☁️ Qwen Coder (OpenRouter Backup)</option>
                     <!-- Local -->
                     <option value="local">💻 HD Local (LM Studio - 100% Ilimitado e Seguro)</option>
                 </select>

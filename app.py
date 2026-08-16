@@ -18,9 +18,8 @@ CORS(app, resources={r"/*": {"origins": ["https://athena-ia.onrender.com", "http
 OMNIROUTER_API_KEY = os.environ.get("OMNIROUTER_API_KEY", os.environ.get("OPENROUTER_API_KEY", ""))
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
-# Define o Gateway. Se você configurar a variável GATEWAY_URL no Render, ele usa. 
-# Senão, cai no padrão OpenRouter.
-GATEWAY_URL = os.environ.get("GATEWAY_URL", "https://omnirouter-gateway-uh97.onrender.com/v1/chat/completions")
+# Define o Gateway oficial do OpenRouter.
+GATEWAY_URL = os.environ.get("GATEWAY_URL", "https://openrouter.ai/api/v1/chat/completions")
 
 # Configuração da URL de Origem para liberação de uso na API gratuita
 SITE_URL = os.environ.get("SITE_URL", "https://athena-ia.onrender.com")

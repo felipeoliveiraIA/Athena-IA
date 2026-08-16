@@ -464,6 +464,57 @@
                         throw new Error("OmniRoute Local offline (localhost:20128). Abra o terminal e execute: omniroute");
                     }
 
+                } else if (isOmniRouteLocal) {
+                    // OmniRoute Local: navegador chama localhost:20128 diretamente
+                    // Funciona apenas quando o index.html está aberto localmente (file:// ou localhost)
+                    if (window.location.protocol === 'https:') {
+                        throw new Error(
+                            "OmniRoute Local não funciona via Render (HTTPS bloqueia chamadas HTTP locais). " +
+                            "Abra o arquivo index.html diretamente no seu PC, " +
+                            "ou acesse via http://localhost:10000 com o OmniRoute rodando em localhost:20128."
+                        );
+                    }
+
+                    // Recupera a API Key do OmniRoute salva em localStorage
+                    // Para salvar: localStorage.setItem('athena_omniroute_key', 'SUA_KEY_AQUI') no console
+                    let omniKey = localStorage.getItem('athena_omniroute_key') || '';
+                    if (!omniKey) {
+                        omniKey = prompt(
+                            'OmniRoute Local: informe sua API Key do dashboard (http://localhost:20128).\n' +
+                            'Ela será salva localmente e não precisará ser inserida novamente.'
+                        ) || '';
+                        if (omniKey) localStorage.setItem('athena_omniroute_key', omniKey);
+                    }
+
+                    const omniController = new AbortController();
+                    const omniTimeout = setTimeout(() => omniController.abort(), 120000);
+
+                    try {
+                        response = await fetch('http://localhost:20128/v1/chat/completions', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...(omniKey ? { 'Authorization': `Bearer ${omniKey}` } : {})
+                            },
+                            signal: omniController.signal,
+                            body: JSON.stringify({
+                                model: 'auto',
+                                messages: [
+                                    { role: "system", content: systemPromptAthena },
+                                    { role: "user", content: userMessagePayload }
+                                ],
+                                stream: true
+                            })
+                        });
+                        clearTimeout(omniTimeout);
+                    } catch (err) {
+                        clearTimeout(omniTimeout);
+                        if (err.name === 'AbortError') {
+                            throw new Error("Timeout: OmniRoute demorou mais de 2 minutos. Verifique se está rodando: execute 'omniroute' no terminal.");
+                        }
+                        throw new Error("OmniRoute Local offline (localhost:20128). Abra o terminal e execute: omniroute");
+                    }
+
                 } else {
                     // Fluxo normal da nuvem: O navegador fala com o Render (Backend)
                     // Auto-detecção (Corrige o "Failed to fetch" do Print 1): 
